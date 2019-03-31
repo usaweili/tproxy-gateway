@@ -27,20 +27,20 @@ docker network create -d macvlan \
     --ipv6 --subnet=fe80::/10 --gateway=fe80::1 \
     -o parent=eth0 \
     -o macvlan_mode=bridge \
-    dMACvLan
+    dMACvLAN
 
 # 拉取docker镜像
-docker pull lisaac/tproxy-gateway:`arch`
+docker pull lisaac/tproxy-gateway:`uname -m`
 
 # 运行容器
 docker run -d --name tproxy-gateway \
     -e TZ=Asia/Shanghai \
-    --network dMACvLan --ip 10.1.1.254 \
+    --network dMACvLAN --ip 10.1.1.254 \
     --privileged \
     --restart unless-stopped \
     -v $HOME/docker/tproxy-gateway:/etc/ss-tproxy \
     -v $HOME/docker/tproxy-gateway/crontab:/etc/crontabs/root \
-    lisaac/tproxy-gateway:`arch`
+    lisaac/tproxy-gateway:`uname -m`
 
 # 查看网关运行情况
 docker logs tproxy-gateway
@@ -83,7 +83,7 @@ dnsmasq_cache_size='10240'                # DNS 缓存条目
 dnsmasq_cache_time='3600'                 # DNS 缓存时间
 dnsmasq_log_enable='false'                # 是否记录日志
 dnsmasq_log_file='/var/log/dnsmasq.log'   # 日志文件路径
-dnsmasq_addn_hosts='/etc/ss-tproxy/hosts' #自定义hosts文件路径
+dnsmasq_addn_hosts='/etc/ss-tproxy/hosts' # 自定义hosts文件路径
 
 ## chinadns
 chinadns_mutation='false'                # DNS 压缩指针
@@ -261,18 +261,18 @@ docker network create -d macvlan \
     --ipv6 --subnet=fe80::/10 --gateway=fe80::1 \
     -o parent=eth0 \
     -o macvlan_mode=bridge \
-    dMACvLan
+    dMACvLAN
 ```
 运行容器:
 ```bash
 docker run -d --name tproxy-gateway \
     -e TZ=Asia/Shanghai \
-    --network dMACvLan --ip 10.1.1.254 --ip6 fe80::fe80 \
+    --network dMACvLAN --ip 10.1.1.254 --ip6 fe80::fe80 \
     --privileged \
     --restart unless-stopped \
     -v /to/path/config:/etc/ss-tproxy \
     -v /to/path/crontab:/etc/crontabs/root \
-    lisaac/tproxy-gateway:`arch`
+    lisaac/tproxy-gateway:`uname -m`
 ```
  - `--ip 10.1.1.254` 指定容器ipv4地址
  - `--ip6 fe80::fe80 ` 指定容器ipv6地址，如不指定自动分配，建议自动分配。若指定，容器重启后会提示ip地址被占用，只能重启docker服务才能启动，原因未知。

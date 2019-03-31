@@ -10,11 +10,12 @@ if [ "$NEED_EXIT" = 1 ]; then
 fi
 
 source "$CONFIG_PATH"/ss-tproxy.conf
-[ ! -f "$file_gfwlist_txt"  ] && touch $file_gfwlist_txt
-[ ! -f "$file_chnroute_txt"  ] && touch $file_chnroute_txt
-[ ! -f "$file_chnroute_set"  ] && touch $file_chnroute_set
-[ ! -f "$dnsmasq_addn_hosts"  ] && touch $dnsmasq_addn_hosts
-
+[ ! -f "$file_gfwlist_txt" ] && touch $file_gfwlist_txt
+[ ! -f "$file_chnroute_txt" ] && touch $file_chnroute_txt
+[ ! -f "$file_chnroute_set" ] && touch $file_chnroute_set
+[ ! -f "$dnsmasq_addn_hosts" ] && touch $dnsmasq_addn_hosts
+echo "`date +%Y-%m-%d\ %T` stopping tproxy-gateway.."
+/usr/local/bin/ss-tproxy stop
 if [ "$mode" = chnroute ]; then
   echo "`date +%Y-%m-%d\ %T` updating chnroute.."
   /usr/local/bin/ss-tproxy update-chnroute
@@ -36,7 +37,7 @@ echo "`date +%Y-%m-%d\ %T` flushing dnscache.."
 kill -9 $(pidof crond) &>/dev/null
 grep -n '^[^#]*/init.sh' /etc/crontabs/root && crond
 echo "`date +%Y-%m-%d\ %T` staring tproxy-gateway.."
-/usr/local/bin/ss-tproxy restart && \
+/usr/local/bin/ss-tproxy start && \
 echo -e "IPv4 gateway & dns server: \n`ip addr show eth0 |grep 'inet ' | awk '{print $2}' |sed 's/\/.*//g'`" && \
 echo -e "IPv6 dns server: \n`ip addr show eth0 |grep 'inet6 ' | awk '{print $2}' |sed 's/\/.*//g'`"
 if [ "$1" = daemon ]; then
