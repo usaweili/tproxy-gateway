@@ -47,10 +47,4 @@ wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/ss-tproxy.co
 wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/v2ray.conf -O /sample_config/v2ray.conf
 wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/gfwlist.ext -O /sample_config/gfwlist.ext
 
-echo "`date +%Y-%m-%d\ %T` Updating init.sh.."
-wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/init.sh -O /init.sh && chmod +x /init.sh
-
-echo "`date +%Y-%m-%d\ %T` Updating update.sh.."
-wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/update.sh -O /init.sh && chmod +x /update.sh
-
 date +%Y-%m-%d\ %T > /version
