@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if [ ! -f /version ]; then
+  /update.sh
+fi
+
 CONFIG_PATH='/etc/ss-tproxy'
 NEED_EXIT=0
 [ ! -f "$CONFIG_PATH"/ss-tproxy.conf ] && { cp /sample_config/ss-tproxy.conf "$CONFIG_PATH"; echo "[ERR] No ss-tproxy.conf, sample file copied, please configure it."  1>&2; NEED_EXIT=1; }
