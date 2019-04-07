@@ -20,7 +20,7 @@ echo "`date +%Y-%m-%d\ %T` Updating v2ray.."
 rm -fr /v2ray && \
 mkdir -p /v2ray && \
 cd /v2ray && \
-wget -q "v2ray_url" -O v2ray-linux.zip && \
+wget -q "$v2ray_url" -O v2ray-linux.zip && \
 unzip v2ray-linux.zip && \
 rm config.json v2ray-linux.zip && \
 chmod +x v2ray v2ctl && mkdir -p /sample_config
