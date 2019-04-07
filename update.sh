@@ -17,7 +17,7 @@ chmod +x v2ray v2ctl && mkdir -p /sample_config
 
 echo "`date +%Y-%m-%d\ %T` Updating ss-tproxy.."
 cd / && mkdir -p /ss-tproxy &&\
-wget -q https://raw.githubusercontent.com/zfl9/ss-tproxy/v3-master/ss-tproxy -O /ss-tproxy/ss-tproxy && \
+wget https://raw.githubusercontent.com/zfl9/ss-tproxy/v3-master/ss-tproxy -O /ss-tproxy/ss-tproxy && \
 sed -i 's/while umount \/etc\/resolv.conf; do :; done/while mount|grep overlay|grep \/etc\/resolv.conf; do umount \/etc\/resolv.conf; done/g' /ss-tproxy/ss-tproxy && \
 sed -i 's/60053/53/g' /ss-tproxy/ss-tproxy && \
 sed -i '/no-resolv/i\addn-hosts=$dnsmasq_addn_hosts' /ss-tproxy/ss-tproxy && \
@@ -35,22 +35,22 @@ fi
 if [ "$arch" = "aarch64" ]; then
   kp_url="https://koolproxy.com/downloads/arm"
 fi
-wget -q "$kp_url" -O koolproxy && \
+wget "$kp_url" -O koolproxy && \
 chmod +x koolproxy && \
 chown -R daemon:daemon /koolproxy
 
 echo "`date +%Y-%m-%d\ %T` Updating chinadns.."
-wget -q https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/chinadns.`uname -m` -O /tmp/chinadns && install -c /tmp/chinadns /usr/local/bin && rm -rf /tmp/*
+wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/chinadns.`uname -m` -O /tmp/chinadns && install -c /tmp/chinadns /usr/local/bin && rm -rf /tmp/*
 
 echo "`date +%Y-%m-%d\ %T` Updating sample files.."
-wget -q https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/ss-tproxy.conf -O /sample_config/ss-tproxy.conf
-wget -q https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/v2ray.conf -O /sample_config/v2ray.conf
-wget -q https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/gfwlist.ext -O /sample_config/gfwlist.ext
+wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/ss-tproxy.conf -O /sample_config/ss-tproxy.conf
+wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/v2ray.conf -O /sample_config/v2ray.conf
+wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/gfwlist.ext -O /sample_config/gfwlist.ext
 
 echo "`date +%Y-%m-%d\ %T` Updating init.sh.."
-wget -q https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/init.sh -O /init.sh && chmod +x /init.sh
+wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/init.sh -O /init.sh && chmod +x /init.sh
 
 echo "`date +%Y-%m-%d\ %T` Updating update.sh.."
-wget -q https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/update.sh -O /init.sh && chmod +x /update.sh
+wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/update.sh -O /init.sh && chmod +x /update.sh
 
 date +%Y-%m-%d\ %T > /version
