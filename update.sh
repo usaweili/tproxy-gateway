@@ -6,13 +6,23 @@ apk --no-cache --no-progress upgrade && \
 apk --no-cache --no-progress add perl curl bash iptables pcre openssl dnsmasq ipset iproute2 tzdata && \
 sed -i 's/mirrors.aliyun.com/dl-cdn.alpinelinux.org/g' /etc/apk/repositories
 
+arch=`uname -m`
+if [ "$arch" = "x86_64" ]; then
+  kp_url="https://koolproxy.com/downloads/x86_64"
+  v2ray_url="https://raw.githubusercontent.com/v2ray/dist/master/v2ray-linux-64.zip"
+fi
+if [ "$arch" = "aarch64" ]; then
+  kp_url="https://koolproxy.com/downloads/arm"
+  v2ray_url="https://raw.githubusercontent.com/v2ray/dist/master/v2ray-linux-arm64.zip"
+fi
+
 echo "`date +%Y-%m-%d\ %T` Updating v2ray.."
 rm -fr /v2ray && \
 mkdir -p /v2ray && \
 cd /v2ray && \
-wget -q https://raw.githubusercontent.com/v2ray/dist/master/v2ray-linux-arm64.zip && \
-unzip v2ray-linux-arm64.zip && \
-rm config.json v2ray-linux-arm64.zip && \
+wget -q "v2ray_url" -O v2ray-linux.zip && \
+unzip v2ray-linux.zip && \
+rm config.json v2ray-linux.zip && \
 chmod +x v2ray v2ctl && mkdir -p /sample_config
 
 echo "`date +%Y-%m-%d\ %T` Updating ss-tproxy.."
@@ -28,13 +38,6 @@ rm -rf /ss-tproxy
 echo "`date +%Y-%m-%d\ %T` Updating koolproxy.."
 rm -fr /koolproxy && \
 mkdir -p /koolproxy && cd /koolproxy && \
-arch=`uname -m`
-if [ "$arch" = "x86_64" ]; then
-  kp_url="https://koolproxy.com/downloads/x86_64"
-fi
-if [ "$arch" = "aarch64" ]; then
-  kp_url="https://koolproxy.com/downloads/arm"
-fi
 wget "$kp_url" -O koolproxy && \
 chmod +x koolproxy && \
 chown -R daemon:daemon /koolproxy
