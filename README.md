@@ -267,7 +267,7 @@ docker network create -d macvlan \
 ```bash
 docker run -d --name tproxy-gateway \
     -e TZ=Asia/Shanghai \
-    --network dMACvLAN --ip 10.1.1.254 --ip6 fe80::fe80 \
+    --network dMACvLAN --ip 10.1.1.254 \
     --privileged \
     --restart unless-stopped \
     -v /to/path/config:/etc/ss-tproxy \
