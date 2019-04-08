@@ -342,9 +342,9 @@ docker run -d --name tproxy-gateway \
 容器中内置 update.sh, 用于热更新 v2ray/koolproxy/ss-tproxy 等二进制文件。
 ```
 # 更新
-docker exec tproxy-gateway /update.sh
+docker exec -t tproxy-gateway /update.sh
 # 重启
-docker exec tproxy-gateway /init.sh
+docker exec -t tproxy-gateway /init.sh
 ```
 
 # 规则自动更新
@@ -354,7 +354,7 @@ docker restart tproxy-gateway
 ```
 或者
 ```
-docker exec tproxy-gateway /init.sh
+docker exec -t tproxy-gateway /init.sh
 ```
 
 自动更新，更新时会临时断网，需在创建容器时，加入`-v /to/path/crontab:/etc/crontabs/root`参数。

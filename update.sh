@@ -71,6 +71,7 @@ wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/gfwlist.ext 
 
 # 写入更新日期及版本
 rm -rf /tmp/*
+echo "Update completed !!"
 echo "Update time: `date +%Y-%m-%d\ %T`" > /version
 echo "V2Ray version: `/v2ray/v2ray -version | grep V2Ray | cut -d' ' -f2`" | tee -a /version
 echo "Koolproxy version: `/koolproxy/koolproxy -v`" | tee -a /version
