@@ -12,6 +12,6 @@ COPY init.sh /
 COPY update.sh /
 COPY ss-tproxy.conf v2ray.conf gfwlist.ext /sample_config/
 
-RUN chmod +x /init.sh /update.sh
+RUN chmod +x /init.sh /update.sh && /update.sh
 
 CMD ["/init.sh","daemon"]

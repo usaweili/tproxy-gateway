@@ -111,81 +111,16 @@ file_chnroute_txt='/etc/ss-tproxy/chnroute.txt' # chnroute 地址段文件 (chin
 file_chnroute_set='/etc/ss-tproxy/chnroute.set' # chnroute 地址段文件 (iptables)
 ```
 ## `v2ray`
-### v2ray.con配置文件vmess协议(tls+ws)示例:
+### v2ray.conf 配置文件 vmess 协议(tls+ws)示例:
 ```json
 {
-  "log": {
-    "access": "/var/log/v2ray-access.log",
+  "log":{
+    "loglevel": "warning",
     "error": "/var/log/v2ray-error.log",
-    "loglevel": "warning"
+    "access": "/var/log/v2ray-access.log"
   },
-
-  "inbounds": [
-    {
-      "protocol": "dokodemo-door",
-      "listen": "0.0.0.0",
-      "port": 60080,
-      "settings": {
-        "network": "tcp,udp",
-        "followRedirect": true
-      },
-      "streamSettings": {
-        "tproxy": "tproxy"
-      }
-    }
-  ],
-
-  "outbound": {
-    "tag": "agentout",
-    "protocol": "vmess",
-    "settings": {
-      "vnext": [
-        {
-          "address": "xx.xx.xx",
-          "port": 443,
-          "users": [
-            {
-              "id": "xxxxxxxxxxxxxxxxxxx",
-              "alterId": 64,
-              "email": "xxxxx",
-              "security": "auto"
-            }
-          ]
-        }
-      ],
-      "servers": null
-    },
-    "streamSettings": {
-      "network": "ws",
-      "security": "tls",
-      "tlsSettings": {
-        "allowInsecure": true,
-        "serverName": null
-      },
-      "tcpSettings": null,
-      "kcpSettings": null,
-      "wsSettings": {
-        "connectionReuse": true,
-        "path": "/path",
-        "headers": null
-      },
-      "httpSettings": null
-    },
-    "mux": {
-      "enabled": false
-    }
-  }
-}
-```
-### v2ray配置文件ss协议示例:
-```json
-{
-  "log": {
-    "access": "/var/log/v2ray-access.log",
-    "error": "/var/log/v2ray-error.log",
-    "loglevel": "warning"
-  },
-
+  "dns":{},
+  "stats":{},
   "inbounds": [
     {
       "protocol": "dokodemo-door",
@@ -197,27 +132,149 @@ file_chnroute_set='/etc/ss-tproxy/chnroute.set' # chnroute 地址段文件 (ipta
       },
       "streamSettings": {
         "sockopt": {
+          "mark": 0,
+          "tcpFastOpen": true,
+          "tproxy": "tproxy"
+        }
+      }
+    }
+  ],
+  "outbounds":[
+    {
+      "tag":"out-0",
+      "settings":{
+        "vnext":[
+          {
+            "address":"xx.xx.xx",
+            "users":[
+              {
+                "id":"xxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "security": "auto",
+                "alterId":32
+              }
+            ],
+            "port":443
+          }
+        ]
+      },
+      "streamSettings":{
+        "tlsSettings":{
+          "allowInsecure": true,
+          "serverName": null
+        },
+        "wsSettings":{
+          "path":"/v2ray"
+        },
+        "security":"tls",
+        "network":"ws"
+      },
+      "protocol":"vmess"
+    },
+    {
+      "protocol":"freedom",
+      "settings":{},
+      "tag":"direct"
+    },
+    {
+      "protocol":"blackhole",
+      "settings":{},
+      "tag":"blocked"
+    }
+  ],
+  "routing":{
+    "rules":[
+      {
+        "ip":[
+          "geoip:private"
+        ],
+        "type":"field",
+        "outboundTag":"direct"
+      }
+    ],
+    "domainStrategy":"IPOnDemand"
+  },
+  "policy":{},
+  "reverse":{},
+  "transport":{}
+}
+```
+### v2ray.conf 配置文件 ss 协议示例:
+```json
+{
+  "log":{
+    "loglevel": "warning",
+    "error": "/var/log/v2ray-error.log",
+    "access": "/var/log/v2ray-access.log"
+  },
+  "dns":{},
+  "stats":{},
+  "inbounds": [
+    {
+      "protocol": "dokodemo-door",
+      "listen": "0.0.0.0",
+      "port": 60080,
+      "settings": {
+        "network": "tcp,udp",
+        "followRedirect": true
+      },
+      "streamSettings": {
+        "sockopt": {
+          "mark": 0,
+          "tcpFastOpen": true,
           "tproxy": "redirect"
         }
       }
     }
   ],
-
-  "outbounds": [
+  "outbounds":[
     {
-      "protocol": "shadowsocks",
-      "settings": {
-        "servers": [
+      "tag":"out-0",
+      "settings":{
+        "servers":[
           {
-            "address": "xx.xx.xx",
-            "port": xxx,
-            "method": "aes-128-gcm",
-            "password": "xxxxxxx"
+            "password":"xxxxxxxxx",
+            "address":"xx.xx.xx",
+            "method":"aes-128-gcm",
+            "port":xxx,
+            "level":0,
+            "email":"t@t.tt",
+            "ota":false
           }
         ]
-      }
+      },
+      "streamSettings":{
+        "tcpSettings":{},
+        "security":"none",
+        "network":"tcp"
+      },
+      "protocol":"shadowsocks"
+    },
+    {
+      "protocol":"freedom",
+      "settings":{},
+      "tag":"direct"
+    },
+    {
+      "protocol":"blackhole",
+      "settings":{},
+      "tag":"blocked"
     }
-  ]
+  ],
+  "routing":{
+    "rules":[
+      {
+        "ip":[
+          "geoip:private"
+        ],
+        "type":"field",
+        "outboundTag":"direct"
+      }
+    ],
+    "domainStrategy":"IPOnDemand"
+  },
+  "policy":{},
+  "reverse":{},
+  "transport":{}
 }
 ```
 ## `koolproxy`
@@ -281,10 +338,23 @@ docker run -d --name tproxy-gateway \
 
 启动后会自动更新规则，根据网络情况，启动可能有所滞后，可以使用`docker logs tproxy-gateway`查看容器情况。
 
+# 热更新容器
+容器中内置 update.sh, 用于热更新 v2ray/koolproxy/ss-tproxy 等二进制文件。
+```
+# 更新
+docker exec tproxy-gateway /update.sh
+# 重启
+docker exec tproxy-gateway /init.sh
+```
+
 # 规则自动更新
 若在使用中需要更新规则，则只需要重启容器即可：
 ```
 docker restart tproxy-gateway
+```
+或者
+```
+docker exec tproxy-gateway /init.sh
 ```
 
 自动更新，更新时会临时断网，需在创建容器时，加入`-v /to/path/crontab:/etc/crontabs/root`参数。
