@@ -8,8 +8,7 @@ RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 	sed -i 's/mirrors.aliyun.com/dl-cdn.alpinelinux.org/g' /etc/apk/repositories && \
 	ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-COPY init.sh /
-COPY update.sh /
+COPY init.sh update.sh /
 COPY ss-tproxy.conf v2ray.conf gfwlist.ext /sample_config/
 
 RUN chmod +x /init.sh /update.sh && /update.sh

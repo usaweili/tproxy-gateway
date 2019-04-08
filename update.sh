@@ -14,7 +14,7 @@ if [ "$arch" = "aarch64" ]; then
 fi
 
 # 更新之前停止 ss-tproxy
-if [ ! -f /usr/local/bin/ss-tproxy ]; then
+if [ -f /usr/local/bin/ss-tproxy ]; then
   /usr/local/bin/ss-tproxy stop > /dev/null
 fi
 
@@ -52,7 +52,7 @@ rm -rf /ss-tproxy
 
 # 更新 koolproxy
 echo "`date +%Y-%m-%d\ %T` Updating koolproxy.."
-rm -fr /koolproxy && mkdir -p /koolproxy && \
+rm -fr /koolproxy && mkdir -p /koolproxy && cd /koolproxy && \
 wget "$kp_url" -O /koolproxy/koolproxy && \
 chmod +x /koolproxy/koolproxy && \
 chown -R daemon:daemon /koolproxy
