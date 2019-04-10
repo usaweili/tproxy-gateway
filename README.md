@@ -311,6 +311,13 @@ function post_stop {
     kill -9 $(pidof koolproxy) &>/dev/null
 ```
 
+### Koolproxy 开启 HTTPS 过滤
+默认没有启用https过滤，如需要启用https过滤，需要运行:
+```bash
+docker exec tproxy-gateway /koolproxy/koolproxy --cert -b /etc/ss-proxy/koolproxydata
+```
+并重启容器，证书文件在宿主机的`/to/path/config/koolproxydata/cert`目录下。
+
 ## 关闭IPv6
 当网络处于 IPv4 + IPv6 双栈时，一般客户端会优先使用 IPv6 连接，这会使得访问一些被屏蔽的网站一些麻烦。
 临时的解决方案是将 DNS 查询到的 IPv6 地址丢弃，首先将 `ss-tproxy.conf` 中设为 `proxy_ipv6='false'` ，将以下代码加入 `ss-tproxy.conf` 中 `post_start` 方法中：
@@ -348,13 +355,6 @@ function post_stop {
         done
     fi
 ```
-
-### 开启 HTTPS 过滤
-默认没有启用https过滤，如需要启用https过滤，需要运行:
-```bash
-docker exec tproxy-gateway /koolproxy/koolproxy --cert -b /etc/ss-proxy/koolproxydata
-```
-并重启容器，证书文件在宿主机的`/to/path/config/koolproxydata/cert`目录下。
 
 # 运行tproxy-gateway容器
 新建docker macvlan网络，配置网络地址为内网lan地址及默认网关:
