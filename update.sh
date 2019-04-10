@@ -77,7 +77,7 @@ function update-koolproxy {
   if [ "$koolproxy_latest_ver" != "$koolproxy_current_ver" -o ! -f /koolproxy/koolproxy ]; then
     echo "Latest koolproxy version: ${koolproxy_latest_ver}, need to update" && \
     rm -fr /koolproxy && mkdir -p /koolproxy && cd /koolproxy && \
-    wget "$kp_url" -O koolproxy && chmod +x /koolproxy/koolproxy && chown -R daemon:daemon /koolproxy
+    wget "$kp_url" -O koolproxy && chmod +x /koolproxy/koolproxy
   else
     echo "Current koolproxy version: ${koolproxy_current_ver}, need NOT to update"
   fi
