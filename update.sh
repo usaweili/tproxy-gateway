@@ -1,8 +1,8 @@
 #!/bin/bash
 
 function get-link {
-  echo "`date +%Y-%m-%d\ %T` Getting latest version."
-  arch=`uname -m`
+  echo "`date +%Y-%m-%d\ %T` Getting latest version." && \
+  arch=`uname -m` && \
   v2ray_latest_ver="$(curl -H 'Cache-Control: no-cache' -s https://api.github.com/repos/v2ray/v2ray-core/releases/latest | grep 'tag_name' | cut -d\" -f4)"; \
   koolproxy_latest_ver="$(curl -H 'Cache-Control: no-cache' -s https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/latest_version | grep 'koolproxy' | cut -d' ' -f2)"; \
   chinadns_latest_ver="$(curl -H 'Cache-Control: no-cache' -s https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/latest_version | grep 'chinadns' | cut -d' ' -f2)"; \
@@ -29,7 +29,7 @@ function stop-sstorpxy {
 
 # 更新系统
 function update-system {
-  echo "`date +%Y-%m-%d\ %T` Upgrading system.."
+  echo "`date +%Y-%m-%d\ %T` Upgrading system.." && \
   sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
   apk --no-cache --no-progress upgrade && \
   apk --no-cache --no-progress add perl curl bash iptables pcre openssl dnsmasq ipset iproute2 tzdata && \
@@ -38,13 +38,13 @@ function update-system {
 
 # 更新 V2RAY
 function update-v2ray {
-  echo "`date +%Y-%m-%d\ %T` Updating v2ray.."
+  echo "`date +%Y-%m-%d\ %T` Updating v2ray.." && \
+  v2ray_latest_v="$(echo $v2ray_latest_ver | cut -dv -f2)" && \
   if [ -f /v2ray/v2ray ]; then
-    v2ray_latest_v="$(echo $v2ray_latest_ver | cut -dv -f2)"
     v2ray_current_v="$(/v2ray/v2ray -version | grep V2Ray | cut -d' ' -f2)"
   fi; \
   if [ "$v2ray_latest_v" != "$v2ray_current_v" -o ! -f /v2ray/v2ray ]; then
-    echo " Latest v2ray version: ${v2ray_latest_v}, need to update"
+    echo " Latest v2ray version: ${v2ray_latest_v}, need to update" && \
     rm -fr /v2ray && mkdir -p /v2ray && cd /v2ray && \
     wget "$v2ray_url" -O v2ray-linux.zip && \
     unzip v2ray-linux.zip && \
@@ -57,7 +57,7 @@ function update-v2ray {
 
 # 更新 ss-tproxy 并 patch
 function update-ss-tproxy {
-  echo "`date +%Y-%m-%d\ %T` Updating ss-tproxy.."
+  echo "`date +%Y-%m-%d\ %T` Updating ss-tproxy.." && \
   cd / && mkdir -p /ss-tproxy &&\
   wget "$ss_url" -O /ss-tproxy/ss-tproxy && \
   sed -i 's/while umount \/etc\/resolv.conf; do :; done/while mount|grep overlay|grep \/etc\/resolv.conf; do umount \/etc\/resolv.conf; done/g' /ss-tproxy/ss-tproxy && \
@@ -70,7 +70,7 @@ function update-ss-tproxy {
 
 # 更新 koolproxy
 function update-koolproxy {
-  echo "`date +%Y-%m-%d\ %T` Updating koolproxy.."
+  echo "`date +%Y-%m-%d\ %T` Updating koolproxy.." && \
   if [ -f /koolproxy/koolproxy ]; then
     koolproxy_current_ver="$(/koolproxy/koolproxy -v | cut -d' ' -f1)"
   fi; \
@@ -85,12 +85,12 @@ function update-koolproxy {
 
 # 更新 chinadns
 function update-chinadns {
-  echo "`date +%Y-%m-%d\ %T` Updating chinadns.."
+  echo "`date +%Y-%m-%d\ %T` Updating chinadns.." && \
   if [ -f /usr/local/bin/chinadns ]; then
     chinadns_current_ver="$(/usr/local/bin/chinadns -V | cut -d' ' -f2)"
   fi; \
   if [ "$chinadns_latest_ver" != "$chinadns_current_ver" -o ! -f /usr/local/bin/chinadns ]; then
-    echo "Latest chinadns version: ${chinadns_current_ver}, need to update"
+    echo "Latest chinadns version: ${chinadns_latest_ver}, need to update" && \
     wget "$chinadns_url" -O /tmp/chinadns && install -c /tmp/chinadns /usr/local/bin
   else
     echo "Current chinadns version: ${chinadns_current_ver}, need NOT to update"
@@ -98,7 +98,7 @@ function update-chinadns {
 }
 
 function update-sample-files {
-  echo "`date +%Y-%m-%d\ %T` Updating sample files.."
+  echo "`date +%Y-%m-%d\ %T` Updating sample files.." && \
   mkdir -p /sample_config && \
   wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/ss-tproxy.conf -O /sample_config/ss-tproxy.conf && \
   wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/v2ray.conf -O /sample_config/v2ray.conf && \
