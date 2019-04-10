@@ -76,14 +76,15 @@ proxy_dports=''        # 服务器的端口
 proxy_tcport='60080'   # TCP 监听端口
 proxy_udport='60080'   # UDP 监听端口
 proxy_runcmd='/v2ray/v2ray -config /etc/ss-tproxy/v2ray.conf > /dev/null 2>&1 &'  # 启动的命令行
-proxy_kilcmd='killall v2ray'  # 停止的命令行
+proxy_kilcmd='kill -9 $(pidof v2ray) &>/dev/null'  # 停止的命令行
+proxy_ipv6='false'     # ipv6支持，目前只支持关闭（通过查询 DNS 只返回 ipv4 地址实现）
 
 ## dnsmasq
-dnsmasq_cache_size='10240'                # DNS 缓存条目
-dnsmasq_cache_time='3600'                 # DNS 缓存时间
-dnsmasq_log_enable='false'                # 是否记录日志
-dnsmasq_log_file='/var/log/dnsmasq.log'   # 日志文件路径
-dnsmasq_addn_hosts='/etc/ss-tproxy/hosts' # 自定义hosts文件路径
+dnsmasq_cache_size='10240'              # DNS 缓存条目
+dnsmasq_cache_time='3600'               # DNS 缓存时间
+dnsmasq_log_enable='false'              # 是否记录日志
+dnsmasq_log_file='/var/log/dnsmasq.log' # 日志文件路径
+dnsmasq_addn_hosts='/etc/ss-tproxy/hosts' #自定义 hosts 文件路径
 
 ## chinadns
 chinadns_mutation='false'                # DNS 压缩指针
@@ -91,15 +92,16 @@ chinadns_verbose='false'                 # 记录详细日志
 chinadns_logfile='/var/log/chinadns.log' # 日志文件路径
 
 ## dns
-dns_modify='true'           # 直接修改 resolv.conf,建议为ture
+dns_modify='true'            # 直接修改 resolv.conf,建议为ture
 dns_remote='8.8.8.8:53'      # 国外 DNS，必须指定端口
 dns_direct='114.114.114.114' # 国内 DNS，不能指定端口
 
 ## ipts
 ipts_rt_tab='100'              # iproute2 路由表名或 ID
 ipts_rt_mark='0x2333'          # iproute2 策略路由的标记
-ipts_non_snat='true'          # 不设置 SNAT iptables 规则
+ipts_non_snat='true'           # 不设置 SNAT iptables 规则
 ipts_intranet=(10.0.0.0/8 192.168.0.0/16) # 内网网段，多个请用空格隔开
+ipts_non_proxy=(10.1.1.253)    # 配置不走代理及广告过滤的内网ip地址，多个请用空格隔开
 
 ## opts
 opts_ss_netstat="auto"  # 'auto|ss|netstat'，使用哪个端口检测命令
@@ -109,6 +111,12 @@ file_gfwlist_txt='/etc/ss-tproxy/gfwlist.txt'   # gfwlist 黑名单文件 (默�
 file_gfwlist_ext='/etc/ss-tproxy/gfwlist.ext'   # gfwlist 黑名单文件 (扩展规则)
 file_chnroute_txt='/etc/ss-tproxy/chnroute.txt' # chnroute 地址段文件 (chinadns)
 file_chnroute_set='/etc/ss-tproxy/chnroute.set' # chnroute 地址段文件 (iptables)
+
+function post_start {
+}
+
+function post_stop {
+}
 ```
 ## `v2ray`
 ### v2ray.conf 配置文件 vmess 协议(tls+ws)示例:
@@ -277,10 +285,10 @@ file_chnroute_set='/etc/ss-tproxy/chnroute.set' # chnroute 地址段文件 (ipta
   "transport":{}
 }
 ```
+
 ## `koolproxy`
-容器中包含`koolproxy`，需要在`ss-tproxy.conf`最后加入一下脚本，则会随容器启动，若不需要，则删除这段脚本即可：
+容器中包含 `koolproxy`，需要在 `ss-tproxy.conf` 中 `post_start` 方法中加入以下脚本，则 `koolproxy` 会随`ss-tproxy`启动。
 ```bash
-function post_start {
     mkdir -p /etc/ss-tproxy/koolproxydata
     chown -R daemon:daemon /etc/ss-tproxy/koolproxydata
     su -s/bin/sh -c'/koolproxy/koolproxy -d -l2 -p65080 -b/etc/ss-proxy/koolproxydata' daemon
@@ -297,12 +305,50 @@ function post_start {
             iptables -t nat -I SSTP_PRE -s $intranet ! -d $intranet -p tcp -m multiport --dports 80,443 -j REDIRECT --to-ports 65080
         done
     fi
-}
-
-function post_stop {
-    kill -9 $(pidof koolproxy) &>/dev/null
-}
 ```
+同时在 `post_stop` 方法中加入加入以下脚本，让 `koolproxy` 随 `ss-tproxy` 停止。
+```
+    kill -9 $(pidof koolproxy) &>/dev/null
+```
+
+## 关闭IPv6
+当网络处于 IPv4 + IPv6 双栈时，一般客户端会优先使用 IPv6 连接，这会使得访问一些被屏蔽的网站一些麻烦。
+临时的解决方案是将 DNS 查询到的 IPv6 地址丢弃，首先将 `ss-tproxy.conf` 中设为 `proxy_ipv6='false'` ，将以下代码加入 `ss-tproxy.conf` 中 `post_start` 方法中：
+```
+    if [ "$proxy_ipv6" = 'false' ]; then
+        iptables -t raw -N SSTP_OUT
+        iptables -t raw -A OUTPUT -j SSTP_OUT
+        if [ "$mode" = 'gfwlist' ]; then
+            iptables -t raw -A SSTP_OUT -p udp -d ${dns_remote%:*} --dport ${dns_remote#*:} -m string --hex-string "|00001c|" --algo bm -j DROP
+        else
+            iptables -t raw -A OUTPUT -p udp -d 127.0.0.1 --dport 65353 -m string --hex-string "|00001c|" --algo bm -j DROP
+        fi
+    fi
+```
+同时将以下代码加入 `ss-tproxy.conf` 中 `post_stop` 方法中：
+```
+    # clear iptables for raw table SSTP_OUT and chain
+    iptables -t raw -D OUTPUT -j SSTP_OUT &>/dev/null
+    iptables -t raw -F SSTP_OUT &>/dev/null
+    iptables -t raw -X SSTP_OUT &>/dev/null
+```
+
+## 配置不走代理及广告过滤的内网ip地址
+有时候希望内网某些机器不走代理，首先配置 `ss-tproxy.conf` 中的 `ipts_non_proxy`，将以下代码加入 `ss-tproxy.conf` 中 `post_start` 方法中：
+```
+    # 配置不走代理的ip
+    if [ "$proxy_tproxy" = 'true' ]; then
+        for intranet in "${ipts_non_proxy[@]}"; do
+            iptables -t mangle -I SSTP_PRE -m mark ! --mark $ipts_rt_mark -s $intranet  -j RETURN
+            iptables -t nat    -I SSTP_PRE -m mark ! --mark $ipts_rt_mark -s $intranet  -j RETURN
+        done
+    else
+        for intranet in "${ipts_non_proxy[@]}"; do
+            iptables -t nat -I SSTP_PRE -s $intranet -j RETURN
+        done
+    fi
+```
+
 ### 开启 HTTPS 过滤
 默认没有启用https过滤，如需要启用https过滤，需要运行:
 ```bash

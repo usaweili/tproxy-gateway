@@ -4,6 +4,8 @@ function get-link {
   echo "`date +%Y-%m-%d\ %T` Getting latest version."
   arch=`uname -m`
   v2ray_latest_ver="$(curl -H 'Cache-Control: no-cache' -s https://api.github.com/repos/v2ray/v2ray-core/releases/latest | grep 'tag_name' | cut -d\" -f4)"
+  koolproxy_latest_ver="$(curl -H 'Cache-Control: no-cache' -s https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/latest_version | grep 'koolproxy' | cut -d' ' -f2)"
+  chinadns_latest_ver="$(curl -H 'Cache-Control: no-cache' -s https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/latest_version | grep 'chinadns' | cut -d' ' -f2)""
   if [ "$arch" = "x86_64" ]; then
     kp_url="https://koolproxy.com/downloads/x86_64"
     v2ray_url="https://raw.githubusercontent.com/v2ray/dist/master/v2ray-linux-64.zip"
@@ -50,7 +52,6 @@ function update-v2ray {
   fi
 }
 
-
 # 更新 ss-tproxy 并 patch
 function update-ss-tproxy {
   echo "`date +%Y-%m-%d\ %T` Updating ss-tproxy.."
@@ -67,14 +68,22 @@ function update-ss-tproxy {
 # 更新 koolproxy
 function update-koolproxy {
   echo "`date +%Y-%m-%d\ %T` Updating koolproxy.."
-  rm -fr /koolproxy && mkdir -p /koolproxy && cd /koolproxy && \
-  wget "$kp_url" -O koolproxy && chmod +x /koolproxy/koolproxy && chown -R daemon:daemon /koolproxy
+  if [ -f /usr/local/bin/chinadns ]; then
+    koolproxy_current_ver="$(/koolproxy/koolproxy -v)"
+  fi
+  if [ "$koolproxy_current_ver" != "$koolproxy_latest_ver" -o ! -f /koolproxy/koolproxy ]; then
+    rm -fr /koolproxy && mkdir -p /koolproxy && cd /koolproxy && \
+    wget "$kp_url" -O koolproxy && chmod +x /koolproxy/koolproxy && chown -R daemon:daemon /koolproxy
+  fi
 }
 
 # 更新 chinadns
 function update-chinadns {
   echo "`date +%Y-%m-%d\ %T` Updating chinadns.."
-  if [ ! -f /usr/local/bin/chinadns ]; then
+  if [ -f /usr/local/bin/chinadns ]; then
+    chinadns_current_ver="$(/usr/local/bin/chinadns -V | cut -d' ' -f2)"
+  fi
+  if [ "$chinadns_latest_ver" != "$chinadns_current_ver" ]; then
     wget "$chinadns_url" -O /tmp/chinadns && install -c /tmp/chinadns /usr/local/bin
   fi
 }
@@ -97,4 +106,4 @@ function check-version {
   echo "Update completed !!"
 }
 
-get-link && stop-sstorpxy && update-v2ray &&  update-ss-tproxy && update-chinadns && update-sample-files && check-version || echo "Update failed." 
+get-link && stop-sstorpxy && update-v2ray && update-ss-tproxy && update-koolproxy && update-chinadns && update-sample-files && check-version || echo "Update failed." 
