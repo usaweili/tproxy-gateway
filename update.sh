@@ -108,7 +108,7 @@ function update-sample-files {
 # 写入更新日期及版本
 function check-version {
   rm -rf /tmp/* && \
-  echo "Update time: $(date +%Y-%m-%d\ %T)" > /versions && \
+  echo "Update time: $(date +%Y-%m-%d\ %T)" > /version && \
   echo "V2Ray version: $(/v2ray/v2ray -version | grep V2Ray | cut -d' ' -f2)" | tee -a /version && \
   echo "Koolproxy version:  $(/koolproxy/koolproxy -v)" | tee -a /version && \
   echo "Chinadns version: $(/usr/local/bin/chinadns -V | cut -d' ' -f2)" | tee -a /version && \
