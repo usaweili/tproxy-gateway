@@ -6,20 +6,11 @@ v2ray版ss-tproxy项目的docker，加入koolproxy，实现docker中的透明网
 mkdir -p ~/.docker/tproxy-gateway
 echo "0       2       *       *       *       /init.sh" > ~/docker/tproxy-gateway/crontab
 
-# 下载gfwlist.ext黑名单文件
-wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/gfwlist.ext -O ~/.docker/tproxy-gateway/gfwlist.ext
-
 # 下载ss-config.conf配置文件
 wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/ss-tproxy.conf  -O ~/.docker/tproxy-gateway/ss-tproxy.conf
 
-################## 配置ss-config.conf ##################
-vi ~/.docker/tproxy-gateway/ss-config.conf
-
-# 下载v2ray.conf配置文件
-wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/v2ray.conf   -O ~/.docker/tproxy-gateway/v2ray.conf
-
-################## 配置v2ray.conf ##################
-vi ~/.docker/tproxy-gateway/v2ray.conf
+## 配置
+echo "输入vmess协议URI ( vmess://xxxxx )" &&  read r_uri && sed -i 's!proxy_uri=.*!proxy_uri='$r_uri'!' ~/.docker/tproxy-gateway/ss-tproxy.conf
 
 # 创建docker network
 docker network create -d macvlan \
