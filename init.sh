@@ -8,6 +8,89 @@ function check-env {
   return 0
 }
 
+function resolve_URI {
+  echo "$(date +%Y-%m-%d\ %T) Resolving proxy URI.."
+
+  if [ -n "$(/v2ray/v2ray -test -config /v2ray/v2ray.conf | grep 'Configuration OK')" -a $(stat -c %Y ${CONFIG_PATH}/v2ray.conf) > $(stat -c %Y ${CONFIG_PATH}/ss-tproxy.conf) ]; then
+    echo "v2ray.conf is the latest, NO need to resolve."
+    return 0
+  fi
+
+  # base64 解码 URI
+  proxy_vmess_config=$(echo $proxy_uri | grep 'vmess://' | sed 's/vmess:\/\///g' | base64 -d | jq . || { echo "[ERR] Proxy URI error, can't decode!" exit 1; })
+
+  if [ -n "$proxy_vmess_config" ]; then
+      proxy_vmess_add=$(echo "$proxy_vmess_config"  | jq .add)
+      sed -i 's/proxy_server=.*/proxy_server=('$(echo $proxy_vmess_add | cut -d\" -f2)')/'  $CONFIG_PATH/ss-tproxy.conf
+      proxy_vmess_port=$(echo "$proxy_vmess_config" | jq .port | cut -d\" -f2)
+      proxy_vmess_id=$(echo "$proxy_vmess_config"   | jq .id)
+      proxy_vmess_aid=$(echo "$proxy_vmess_config"  | jq .aid | cut -d\" -f2)
+      proxy_vmess_net=$(echo "$proxy_vmess_config"  | jq .net)
+      proxy_vmess_type=$(echo "$proxy_vmess_config" | jq .type)
+      proxy_vmess_host=$(echo "$proxy_vmess_config" | jq .host)
+      proxy_vmess_path=$(echo "$proxy_vmess_config" | jq .path)
+      proxy_vmess_tls=$(echo "$proxy_vmess_config"  | jq .tls)
+
+      ## outBounds 设置
+      out_set='{"vnext":[{"address":'${proxy_vmess_add}',"port":'${proxy_vmess_port}',"users":[{"id":'${proxy_vmess_id}',"security":"auto","alterId": '${proxy_vmess_aid}'}]}]}'
+      out_stream='{"network":'${proxy_vmess_net}',"security":"none"}'
+
+      if [ "$proxy_vmess_net" == '"tcp"' ]; then
+        out_stream=$(echo $out_stream | jq '. | {network, security, "tcpSettings":{}}')
+      elif [ "$proxy_vmess_net" == '"kcp"' ]; then
+        out_stream=$(echo $out_stream | jq '. | {network, security, "kcpSettings":{}}')
+      elif [ "$proxy_vmess_net" == '"ws"' ]; then
+        out_stream=$(echo $out_stream | jq '. | {network, security, "wsSettings":{"path":'${proxy_vmess_path}'}}')
+      elif [ "$proxy_vmess_net" == '"http"' ]; then
+        out_stream=$(echo $out_stream | jq '. | {network, security, "httpSettings":{"path":'${proxy_vmess_path}',"host":'${$proxy_vmess_host}'}}')
+      elif [ "$proxy_vmess_net" == '"quic"' ]; then
+        out_stream=$(echo $out_stream | jq '. | {network, security, "quicSettings":{"security":'${proxy_vmess_host}',"key":'${proxy_vmess_path}',"header":{"type": "none"}}}')
+      fi
+      if [ "$proxy_vmess_tls" == '"tls"' ]; then
+        if [ "$proxy_vmess_host" == '""' ]; then 
+          proxy_vmess_host="null"
+        fi
+        out_stream=$(echo "$out_stream" | jq '. += {"tlsSettings":{"allowInsecure":true,"serverName":'${proxy_vmess_host}'}} | to_entries | map(if .key == "security" then . + {"value":"tls"} else . end ) | from_entries')
+      fi
+      outbound='[{"protocol":"vmess","settings":'${out_set}',"tag": "out-0","streamSettings":'${out_stream}'}]'
+
+      ## inBounds 设置
+      if [ "$proxy_tproxy" == 'true' ]; then
+        proxy_vmess_tproxy='"tproxy"'
+      else
+        proxy_vmess_tproxy='"redirect"'
+      fi
+      if [ "$(echo "$proxy_tcport"|[ -n "`sed -n '/^[0-9][0-9]*$/p'`" ])" ]; then
+        proxy_tcport=60080
+        sed -i 's/proxy_tcport=.*/proxy_tcport=60080/'  $CONFIG_PATH/ss-tproxy.conf
+      fi
+      if [ "$(echo "$proxy_udport"|[ -n "`sed -n '/^[0-9][0-9]*$/p'`" ])" ]; then
+        proxy_duport=60080
+        sed -i 's/proxy_udport=.*/proxy_udport=60080/'  $CONFIG_PATH/ss-tproxy.conf
+      fi
+      in_stream='{"sockopt":{"mark":0,"tcpFastOpen":true,"tproxy":'${proxy_vmess_tproxy}'}}'
+
+      if [ "$proxy_tcport" != "$proxy_udport" ]; then
+        inbound='[{"protocol":"dokodemo-door","listen":"0.0.0.0","port":'${proxy_tcport}',"settings":{"network": "tcp","followRedirect":true },"streamSettings":'${in_stream}'},[{"protocol":"dokodemo-door","listen":"0.0.0.0","port":'${proxy_udport}',"settings":{"network": "udp","followRedirect":true },"streamSettings":'${in_stream}'}]'
+      else
+        inbound='[{"protocol":"dokodemo-door","listen":"0.0.0.0","port":'${proxy_tcport}',"settings":{"network": "tcp,udp","followRedirect":true },"streamSettings":'${in_stream}'}]'
+      fi
+      ## v2ray 日志
+      v_log='{"loglevel": "warning","error": "/var/log/v2ray-error.log","access": "/var/log/v2ray-access.log"}'
+
+      v2ray_config=$(echo '{"log":'${v_log}',"dns":{},"stats":{},"inbounds":'${inbound}',"outbounds":'${outbound}',"routing":{},"policy":{},"reverse":{},"transport":{}}' | jq .)
+
+      echo $v2ray_config | jq . > "/tmp/v2ray.conf"
+      if [ -n "$(/v2ray/v2ray -test -config /tmp/v2ray.conf | grep 'Configuration OK')" ]; then
+        echo "V2ray.conf resolve succeed !!"
+        mv /tmp/v2ray.conf "$CONFIG_PATH/v2ray.conf"
+      else
+        echo "[ERR] V2ray.conf resolvefailed.."
+        exit 1
+      fi
+  fi
+}
+
 function check-config {
   NEED_EXIT="false"
   # 若没有配置文件，拷贝配置文件模版
@@ -87,7 +170,7 @@ function start-ss-tproxy {
   /usr/local/bin/ss-tproxy start && return 0
 }
 
-check-env && check-config && stop-ss-tproxy && update-ss-config && flush-ss-tproxy && set-cron && start-ss-tproxy && \
+check-env && check-config && stop-ss-tproxy && update-ss-config && flush-ss-tproxy && set-cron && resolve_URI && start-ss-tproxy && \
 echo -e "IPv4 gateway & dns server: \n`ip addr show eth0 |grep 'inet ' | awk '{print $2}' |sed 's/\/.*//g'`" && \
 echo -e "IPv6 dns server: \n`ip addr show eth0 |grep 'inet6 ' | awk '{print $2}' |sed 's/\/.*//g'`" || echo "[ERR] Start tproxy-gateway failed."
 if [ "$1" = daemon ]; then
