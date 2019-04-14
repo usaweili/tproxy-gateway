@@ -11,8 +11,8 @@ function check-env {
 function resolve_URI {
   echo "$(date +%Y-%m-%d\ %T) Resolving proxy URI.."
 
-  if [ -n "$(/v2ray/v2ray -test -config /v2ray/v2ray.conf | grep 'Configuration OK')" -a $(stat -c %Y ${CONFIG_PATH}/v2ray.conf) > $(stat -c %Y ${CONFIG_PATH}/ss-tproxy.conf) ]; then
-    echo "v2ray.conf is the latest, NO need to resolve."
+  if [ $(stat -c %Y ${CONFIG_PATH}/ss-tproxy.conf) -lt $(stat -c %Y ${CONFIG_PATH}/v2ray.conf) -a -n "$(/v2ray/v2ray -test -config ${CONFIG_PATH}/v2ray.conf | grep 'Configuration OK')" ]; then
+    echo "$(date +%Y-%m-%d\ %T) v2ray.conf is the latest, NO need to resolve."
     return 0
   fi
 
@@ -99,19 +99,19 @@ function check-config {
     echo "[ERR] No ss-tproxy.conf, sample file copied, please configure it."
     NEED_EXIT="true"
   fi; \
-  if [ ! -f "$CONFIG_PATH"/v2ray.conf ]; then
-    cp /sample_config/v2ray.conf "$CONFIG_PATH"
-    echo "[ERR] No v2ray.conf, sample file copied, please configure it."
-    NEED_EXIT="true"
-  fi; \
-  if [ ! -f "$CONFIG_PATH"/gfwlist.ext ]; then
-    cp /sample_config/gfwlist.ext "$CONFIG_PATH"
-  fi; \
+  # if [ ! -f "$CONFIG_PATH"/v2ray.conf ]; then
+  #   cp /sample_config/v2ray.conf "$CONFIG_PATH"
+  #   echo "[ERR] No v2ray.conf, sample file copied, please configure it."
+  #   NEED_EXIT="true"
+  # fi; \
   if [ "$NEED_EXIT" = "true" ]; then
     exit 1;
   fi; \
   # touch 空配置文件
   source "$CONFIG_PATH"/ss-tproxy.conf
+  if [ ! -f "$file_gfwlist_ext" ]; then
+    cp /sample_config/gfwlist.ext "$file_gfwlist_ext"
+  fi; \
   [ ! -f "$file_gfwlist_txt" ] && touch $file_gfwlist_txt; \
   [ ! -f "$file_chnroute_txt" ] && touch $file_chnroute_txt; \
   [ ! -f "$file_chnroute_set" ] && touch $file_chnroute_set; \
@@ -126,17 +126,32 @@ function stop-ss-tproxy {
 }
 
 function update-ss-config {
-  # 更新 ss-tproxy 配置
+  # 更新 ss-tproxy 规则
   if [ "$mode" = chnroute ]; then
-    echo "$(date +%Y-%m-%d\ %T) updating chnroute.."
-    /usr/local/bin/ss-tproxy update-chnroute
+    proxy_mode="$mode"
+    proxy_rule_latest_url="https://api.github.com/repos/17mon/china_ip_list/commits/master"
+    proxy_rule_file="$file_chnroute_txt"
+  elif [ "$mode" = gfwlist -a "$mode_chnonly" = 'true' ]; then
+    proxy_mode="chnonly"
+    proxy_rule_latest_url="https://api.github.com/repos/17mon/china_ip_list/commits/master"
+    proxy_rule_file="$file_gfwlist_txt"
   elif [ "$mode" = gfwlist ]; then
-    echo "$(date +%Y-%m-%d\ %T) updating gfwlist.."
-    /usr/local/bin/ss-tproxy update-gfwlist
-  elif [ "$mode" = chnonly ]; then
-    echo "$(date +%Y-%m-%d\ %T) updating chnonly.."
-    /usr/local/bin/ss-tproxy update-chnonly
+    proxy_mode="$mode"
+    proxy_rule_latest_url="https://api.github.com/repos/gfwlist/gfwlist/commits/master"
+    proxy_rule_file="$file_gfwlist_txt"
   fi; \
+  echo "$(date +%Y-%m-%d\ %T) updating $proxy_mode.."
+  if [ -s "$proxy_rule_file" ]; then #不空
+    proxy_rule_latest=$(curl -H 'Cache-Control: no-cache' -s "$proxy_rule_latest_url" | grep date | awk 'NR==1{print $2}' | sed 's/"//g; s/T/ /; s/Z//' | xargs -I{} date -d {} +%s); \
+    proxy_rule_current=$(stat -c %Y $proxy_rule_file);
+    if [ "$proxy_rule_latest" -gt "$proxy_rule_current" ]; then
+          /usr/local/bin/ss-tproxy update-"$proxy_mode"
+    else
+          echo "$(date +%Y-%m-%d\ %T) $proxy_mode rule is latest, NO need to update."
+    fi
+  else # 空文件
+    /usr/local/bin/ss-tproxy update-"$proxy_mode"
+  fi
   return 0
 }
 

@@ -9,7 +9,7 @@ echo "0       2       *       *       *       /init.sh" > ~/docker/tproxy-gatewa
 # 下载ss-config.conf配置文件
 wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/ss-tproxy.conf  -O ~/.docker/tproxy-gateway/ss-tproxy.conf
 
-## 配置
+# 配置
 echo "输入vmess协议URI ( vmess://xxxxx )" &&  read r_uri && sed -i 's!proxy_uri=.*!proxy_uri='$r_uri'!' ~/.docker/tproxy-gateway/ss-tproxy.conf
 
 # 创建docker network
@@ -58,15 +58,18 @@ docker logs tproxy-gateway
 ## mode
 #mode='global'
 mode='gfwlist'
+#mode_chnonly='true'   # chnonly 模式，需要 mode='gfwlist',切换 chnonly / gfwlist 之前请删除 gfwlist.txt ($file_gfwlist_txt) 文件
 #mode='chnroute'
 
 ## proxy
+# vmess://xxxxx  代理节点配置 URI（V2rayN 生成）
+proxy_uri='vmess:/'
+proxy_server=()       # 服务器的地址，若已配置 proxy_uri 则无需配置
 proxy_tproxy='true'   # 纯TPROXY方式
-proxy_server=(xx.xx.xx)   # 服务器的地址
 proxy_dports=''        # 服务器的端口
 proxy_tcport='60080'   # TCP 监听端口
 proxy_udport='60080'   # UDP 监听端口
-proxy_runcmd='/v2ray/v2ray -config /etc/ss-tproxy/v2ray.conf > /dev/null 2>&1 &'  # 启动的命令行
+proxy_runcmd='run_v2ray'  # 启动的命令行
 proxy_kilcmd='kill -9 $(pidof v2ray) &>/dev/null'  # 停止的命令行
 proxy_ipv6='false'     # ipv6支持，目前只支持关闭（通过查询 DNS 只返回 ipv4 地址实现）
 
@@ -92,7 +95,7 @@ ipts_rt_tab='100'              # iproute2 路由表名或 ID
 ipts_rt_mark='0x2333'          # iproute2 策略路由的标记
 ipts_non_snat='true'           # 不设置 SNAT iptables 规则
 ipts_intranet=(10.0.0.0/8 192.168.0.0/16) # 内网网段，多个请用空格隔开
-ipts_non_proxy=(10.1.1.253)    # 配置不走代理及广告过滤的内网ip地址，多个请用空格隔开
+ipts_non_proxy=(10.1.1.253)     # 配置不走代理及广告过滤的内网ip地址，多个ip请用空格隔开
 
 ## opts
 opts_ss_netstat="auto"  # 'auto|ss|netstat'，使用哪个端口检测命令
@@ -104,203 +107,68 @@ file_chnroute_txt='/etc/ss-tproxy/chnroute.txt' # chnroute 地址段文件 (chin
 file_chnroute_set='/etc/ss-tproxy/chnroute.set' # chnroute 地址段文件 (iptables)
 
 function post_start {
+  # for koolproxy
+  mkdir -p /etc/ss-tproxy/koolproxydata
+  chown -R daemon:daemon /etc/ss-tproxy/koolproxydata
+  su -s/bin/sh -c'/koolproxy/koolproxy -d -l2 -p65080 -b/etc/ss-tproxy/koolproxydata' daemon
+  if [ "$proxy_tproxy" = 'true' ]; then
+      iptables -t mangle -I SSTP_OUT -m owner ! --uid-owner daemon -p tcp -m multiport --dports 80,443 -j RETURN
+      iptables -t nat  -I SSTP_OUT -m owner ! --uid-owner daemon -p tcp -m multiport --dports 80,443 -j REDIRECT --to-ports 65080
+      for intranet in "${ipts_intranet[@]}"; do
+        iptables -t mangle -I SSTP_PRE -m mark ! --mark $ipts_rt_mark -p tcp -m multiport --dports 80,443 -s $intranet ! -d $intranet -j RETURN
+        iptables -t nat  -I SSTP_PRE -m mark ! --mark $ipts_rt_mark -p tcp -m multiport --dports 80,443 -s $intranet ! -d $intranet -j REDIRECT --to-ports 65080
+      done
+  else
+      iptables -t nat -I SSTP_OUT -m owner ! --uid-owner daemon -p tcp -m multiport --dports 80,443 -j REDIRECT --to-ports 65080
+      for intranet in "${ipts_intranet[@]}"; do
+        iptables -t nat -I SSTP_PRE -s $intranet ! -d $intranet -p tcp -m multiport --dports 80,443 -j REDIRECT --to-ports 65080
+      done
+  fi
+  # return ipv4 only from dns_remote (DROP AAAA RECORDE)
+  if [ "$proxy_ipv6" = 'false' ]; then
+      iptables -t raw -N SSTP_OUT
+      iptables -t raw -A OUTPUT -j SSTP_OUT
+      if [ "$mode" = 'gfwlist' ]; then
+        iptables -t raw -A SSTP_OUT -p udp -d ${dns_remote%:*} --dport ${dns_remote#*:} -m string --hex-string "|00001c|" --algo bm -j DROP
+      else
+        iptables -t raw -A OUTPUT -p udp -d 127.0.0.1 --dport 65353 -m string --hex-string "|00001c|" --algo bm -j DROP
+      fi
+  fi
+  # 配置不走代理的ip
+  if [ "$proxy_tproxy" = 'true' ]; then
+      for intranet in "${ipts_non_proxy[@]}"; do
+        iptables -t mangle -I SSTP_PRE -m mark ! --mark $ipts_rt_mark -s $intranet  -j RETURN
+        iptables -t nat  -I SSTP_PRE -m mark ! --mark $ipts_rt_mark -s $intranet  -j RETURN
+      done
+  else
+      for intranet in "${ipts_non_proxy[@]}"; do
+        iptables -t nat -I SSTP_PRE -s $intranet -j RETURN
+      done
+  fi
 }
 
 function post_stop {
+  # kill koolproxy
+  kill -9 $(pidof koolproxy) &>/dev/null
+  # clear iptables for raw table SSTP_OUT and chain
+  iptables -t raw -D OUTPUT -j SSTP_OUT &>/dev/null
+  iptables -t raw -F SSTP_OUT &>/dev/null
+  iptables -t raw -X SSTP_OUT &>/dev/null
 }
-```
-## `v2ray`
-### v2ray.conf 配置文件 vmess 协议(tls+ws)示例:
-```json
-{
-  "log":{
-    "loglevel": "warning",
-    "error": "/var/log/v2ray-error.log",
-    "access": "/var/log/v2ray-access.log"
-  },
-  "dns":{},
-  "stats":{},
-  "inbounds": [
-    {
-      "protocol": "dokodemo-door",
-      "listen": "0.0.0.0",
-      "port": 60080,
-      "settings": {
-        "network": "tcp,udp",
-        "followRedirect": true
-      },
-      "streamSettings": {
-        "sockopt": {
-          "mark": 0,
-          "tcpFastOpen": true,
-          "tproxy": "tproxy"
-        }
-      }
-    }
-  ],
-  "outbounds":[
-    {
-      "tag":"out-0",
-      "settings":{
-        "vnext":[
-          {
-            "address":"xx.xx.xx",
-            "users":[
-              {
-                "id":"xxxxxxxxxxxxxxxxxxxxxxxxxxx",
-                "security": "auto",
-                "alterId":32
-              }
-            ],
-            "port":443
-          }
-        ]
-      },
-      "streamSettings":{
-        "tlsSettings":{
-          "allowInsecure": true,
-          "serverName": null
-        },
-        "wsSettings":{
-          "path":"/v2ray"
-        },
-        "security":"tls",
-        "network":"ws"
-      },
-      "protocol":"vmess"
-    },
-    {
-      "protocol":"freedom",
-      "settings":{},
-      "tag":"direct"
-    },
-    {
-      "protocol":"blackhole",
-      "settings":{},
-      "tag":"blocked"
-    }
-  ],
-  "routing":{
-    "rules":[
-      {
-        "ip":[
-          "geoip:private"
-        ],
-        "type":"field",
-        "outboundTag":"direct"
-      }
-    ],
-    "domainStrategy":"IPOnDemand"
-  },
-  "policy":{},
-  "reverse":{},
-  "transport":{}
+
+function run_v2ray {
+  if [ -n "$(/v2ray/v2ray -test -config /etc/ss-tproxy/v2ray.conf | grep 'Configuration OK')" ]; then
+      /v2ray/v2ray -config /etc/ss-tproxy/v2ray.conf > /dev/null 2>&1 &
+  else
+      echo "[ERR] V2ray.conf error, can't start V2ray!" ; exit 1;
+  fi
 }
-```
-### v2ray.conf 配置文件 ss 协议示例:
-```json
-{
-  "log":{
-    "loglevel": "warning",
-    "error": "/var/log/v2ray-error.log",
-    "access": "/var/log/v2ray-access.log"
-  },
-  "dns":{},
-  "stats":{},
-  "inbounds": [
-    {
-      "protocol": "dokodemo-door",
-      "listen": "0.0.0.0",
-      "port": 60080,
-      "settings": {
-        "network": "tcp,udp",
-        "followRedirect": true
-      },
-      "streamSettings": {
-        "sockopt": {
-          "mark": 0,
-          "tcpFastOpen": true,
-          "tproxy": "redirect"
-        }
-      }
-    }
-  ],
-  "outbounds":[
-    {
-      "tag":"out-0",
-      "settings":{
-        "servers":[
-          {
-            "password":"xxxxxxxxx",
-            "address":"xx.xx.xx",
-            "method":"aes-128-gcm",
-            "port":xxx,
-            "level":0,
-            "email":"t@t.tt",
-            "ota":false
-          }
-        ]
-      },
-      "streamSettings":{
-        "tcpSettings":{},
-        "security":"none",
-        "network":"tcp"
-      },
-      "protocol":"shadowsocks"
-    },
-    {
-      "protocol":"freedom",
-      "settings":{},
-      "tag":"direct"
-    },
-    {
-      "protocol":"blackhole",
-      "settings":{},
-      "tag":"blocked"
-    }
-  ],
-  "routing":{
-    "rules":[
-      {
-        "ip":[
-          "geoip:private"
-        ],
-        "type":"field",
-        "outboundTag":"direct"
-      }
-    ],
-    "domainStrategy":"IPOnDemand"
-  },
-  "policy":{},
-  "reverse":{},
-  "transport":{}
-}
+
 ```
 
 ## `koolproxy`
 容器中包含 `koolproxy`，需要在 `ss-tproxy.conf` 中 `post_start` 方法中加入以下脚本，则 `koolproxy` 会随`ss-tproxy`启动。
-```bash
-    mkdir -p /etc/ss-tproxy/koolproxydata
-    chown -R daemon:daemon /etc/ss-tproxy/koolproxydata
-    su -s/bin/sh -c'/koolproxy/koolproxy -d -l2 -p65080 -b/etc/ss-proxy/koolproxydata' daemon
-    if [ "$proxy_tproxy" = 'true' ]; then
-        iptables -t mangle -I SSTP_OUT -m owner ! --uid-owner daemon -p tcp -m multiport --dports 80,443 -j RETURN
-        iptables -t nat    -I SSTP_OUT -m owner ! --uid-owner daemon -p tcp -m multiport --dports 80,443 -j REDIRECT --to-ports 65080
-        for intranet in "${ipts_intranet[@]}"; do
-            iptables -t mangle -I SSTP_PRE -m mark ! --mark $ipts_rt_mark -p tcp -m multiport --dports 80,443 -s $intranet ! -d $intranet -j RETURN
-            iptables -t nat    -I SSTP_PRE -m mark ! --mark $ipts_rt_mark -p tcp -m multiport --dports 80,443 -s $intranet ! -d $intranet -j REDIRECT --to-ports 65080
-        done
-    else
-        iptables -t nat -I SSTP_OUT -m owner ! --uid-owner daemon -p tcp -m multiport --dports 80,443 -j REDIRECT --to-ports 65080
-        for intranet in "${ipts_intranet[@]}"; do
-            iptables -t nat -I SSTP_PRE -s $intranet ! -d $intranet -p tcp -m multiport --dports 80,443 -j REDIRECT --to-ports 65080
-        done
-    fi
-```
 同时在 `post_stop` 方法中加入加入以下脚本，让 `koolproxy` 随 `ss-tproxy` 停止。
-```
-    kill -9 $(pidof koolproxy) &>/dev/null
-```
 
 ### Koolproxy 开启 HTTPS 过滤
 默认没有启用https过滤，如需要启用https过滤，需要运行:
@@ -311,43 +179,13 @@ docker exec tproxy-gateway /koolproxy/koolproxy --cert -b /etc/ss-proxy/koolprox
 
 ## 关闭IPv6
 当网络处于 IPv4 + IPv6 双栈时，一般客户端会优先使用 IPv6 连接，这会使得访问一些被屏蔽的网站一些麻烦。
-临时的解决方案是将 DNS 查询到的 IPv6 地址丢弃，首先将 `ss-tproxy.conf` 中设为 `proxy_ipv6='false'` ，将以下代码加入 `ss-tproxy.conf` 中 `post_start` 方法中：
-```
-    if [ "$proxy_ipv6" = 'false' ]; then
-        iptables -t raw -N SSTP_OUT
-        iptables -t raw -A OUTPUT -j SSTP_OUT
-        if [ "$mode" = 'gfwlist' ]; then
-            iptables -t raw -A SSTP_OUT -p udp -d ${dns_remote%:*} --dport ${dns_remote#*:} -m string --hex-string "|00001c|" --algo bm -j DROP
-        else
-            iptables -t raw -A OUTPUT -p udp -d 127.0.0.1 --dport 65353 -m string --hex-string "|00001c|" --algo bm -j DROP
-        fi
-    fi
-```
-同时将以下代码加入 `ss-tproxy.conf` 中 `post_stop` 方法中：
-```
-    # clear iptables for raw table SSTP_OUT and chain
-    iptables -t raw -D OUTPUT -j SSTP_OUT &>/dev/null
-    iptables -t raw -F SSTP_OUT &>/dev/null
-    iptables -t raw -X SSTP_OUT &>/dev/null
-```
+
+采用的临时解决方案是将 DNS 查询到的 IPv6 地址丢弃， 配置`ss-tproxy.conf` 中 `proxy_ipv6='false'` 即可
 
 ## 配置不走代理及广告过滤的内网ip地址
-有时候希望内网某些机器不走代理，首先配置 `ss-tproxy.conf` 中的 `ipts_non_proxy`，将以下代码加入 `ss-tproxy.conf` 中 `post_start` 方法中：
-```
-    # 配置不走代理的ip
-    if [ "$proxy_tproxy" = 'true' ]; then
-        for intranet in "${ipts_non_proxy[@]}"; do
-            iptables -t mangle -I SSTP_PRE -m mark ! --mark $ipts_rt_mark -s $intranet  -j RETURN
-            iptables -t nat    -I SSTP_PRE -m mark ! --mark $ipts_rt_mark -s $intranet  -j RETURN
-        done
-    else
-        for intranet in "${ipts_non_proxy[@]}"; do
-            iptables -t nat -I SSTP_PRE -s $intranet -j RETURN
-        done
-    fi
-```
+有时候希望内网某些机器不走代理，配置 `ss-tproxy.conf` 中 `ipts_non_proxy`，多个ip请用空格隔开
 
-# 运行tproxy-gateway容器
+# 运行 tproxy-gateway 容器
 新建docker macvlan网络，配置网络地址为内网lan地址及默认网关:
 ```bash
 docker network create -d macvlan \
@@ -386,10 +224,6 @@ docker exec -t tproxy-gateway /init.sh
 
 # 规则自动更新
 若在使用中需要更新规则，则只需要重启容器即可：
-```
-docker restart tproxy-gateway
-```
-或者
 ```
 docker exec -t tproxy-gateway /init.sh
 ```
