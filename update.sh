@@ -1,5 +1,25 @@
 #!/bin/bash
 
+function check-new-version {
+  echo "$(date +%Y-%m-%d\ %T) Check new version of tproxy-gateway." && \
+  tproxy_gateway_latest=$(curl -H 'Cache-Control: no-cache' -s "https://api.github.com/repos/lisaac/tproxy-gateway/commits/master" | grep date | awk 'NR==1{print $2}' | sed 's/"//g; s/T/ /; s/Z//' | xargs -I{} date -d {} +%s); \
+  update_sh_current=$(stat -c %Y $0); \
+  if [ "$tproxy_gateway_latest" -gt "$update_sh_current" ]; then
+    echo "$(date +%Y-%m-%d\ %T) updating update.sh."
+    wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/update.sh -O /tmp/update.sh && \
+    install -c /tmp/update.sh $0 && \
+    $0 $@
+    exit 0
+  fi
+  init_sh_current=$(stat -c %Y /init.sh)
+  if [ "$tproxy_gateway_latest" -gt "$init_sh_current" ]; then
+    echo "$(date +%Y-%m-%d\ %T) updating init.sh."
+    wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/init.sh -O /tmp/init.sh && \
+    install -c /tmp/init.sh /init.sh
+  fi
+  echo "$(date +%Y-%m-%d\ %T) tproxy-gateway update to date."
+}
+
 function get-link {
   echo "$(date +%Y-%m-%d\ %T) Getting latest version." && \
   arch=`uname -m` && \
@@ -115,4 +135,4 @@ function check-version {
   echo "Update completed !!"
 }
 
-get-link && stop-sstorpxy && update-v2ray && update-ss-tproxy && update-koolproxy && update-chinadns && update-sample-files && check-version || echo "Update failed." 
+check-new-version && get-link && stop-sstorpxy && update-v2ray && update-ss-tproxy && update-koolproxy && update-chinadns && update-sample-files && check-version || echo "Update failed." 

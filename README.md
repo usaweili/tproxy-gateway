@@ -7,31 +7,34 @@ mkdir -p ~/.docker/tproxy-gateway
 echo "0       2       *       *       *       /init.sh" > ~/docker/tproxy-gateway/crontab
 
 # 下载ss-config.conf配置文件
-wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/ss-tproxy.conf  -O ~/.docker/tproxy-gateway/ss-tproxy.conf
+wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/ss-tproxy.conf \
+  -O ~/.docker/tproxy-gateway/ss-tproxy.conf
 
 # 配置
-echo "输入vmess协议URI ( vmess://xxxxx )" &&  read r_uri && sed -i 's!proxy_uri=.*!proxy_uri='$r_uri'!' ~/.docker/tproxy-gateway/ss-tproxy.conf
+echo "输入vmess协议URI ( vmess://xxxxx )" && \
+  read r_uri && sed -i 's!proxy_uri=.*!proxy_uri='$r_uri'!'\
+  ~/.docker/tproxy-gateway/ss-tproxy.conf
 
 # 创建docker network
 docker network create -d macvlan \
-    --subnet=10.1.1.0/24 --gateway=10.1.1.1 \
-    --ipv6 --subnet=fe80::/10 --gateway=fe80::1 \
-    -o parent=eth0 \
-    -o macvlan_mode=bridge \
-    dMACvLAN
+  --subnet=10.1.1.0/24 --gateway=10.1.1.1 \
+  --ipv6 --subnet=fe80::/10 --gateway=fe80::1 \
+  -o parent=eth0 \
+  -o macvlan_mode=bridge \
+  dMACvLAN
 
 # 拉取docker镜像
 docker pull lisaac/tproxy-gateway:`uname -m`
 
 # 运行容器
 docker run -d --name tproxy-gateway \
-    -e TZ=Asia/Shanghai \
-    --network dMACvLAN --ip 10.1.1.254 \
-    --privileged \
-    --restart unless-stopped \
-    -v $HOME/.docker/tproxy-gateway:/etc/ss-tproxy \
-    -v $HOME/.docker/tproxy-gateway/crontab:/etc/crontabs/root \
-    lisaac/tproxy-gateway:`uname -m`
+  -e TZ=Asia/Shanghai \
+  --network dMACvLAN --ip 10.1.1.254 \
+  --privileged \
+  --restart unless-stopped \
+  -v $HOME/.docker/tproxy-gateway:/etc/ss-tproxy \
+  -v $HOME/.docker/tproxy-gateway/crontab:/etc/crontabs/root \
+  lisaac/tproxy-gateway:`uname -m`
 
 # 查看网关运行情况
 docker logs tproxy-gateway
@@ -42,14 +45,14 @@ docker logs tproxy-gateway
 本容器由ss-tproxy + v2ray 组成，配置文件放至`/to/path/config`，并挂载至容器，主要配置文件为：
 ```bash
 /to/ptah/config
-    |- ss-tproxy.conf：配置文件
-    |- gfwlist.ext：gfwlsit 黑名单文件，可配置
-    |- v2ray.conf: v2ray 配置文件
-    |- hosts: 自定义hosts文件
+  |- ss-tproxy.conf：配置文件
+  |- gfwlist.ext：gfwlsit 黑名单文件，可配置
+  |- v2ray.conf: v2ray 配置文件
+  |- hosts: 自定义hosts文件
 ```
 
 ## `ss-tproxy`
-[ss-tproxy](https://github.com/zfl9/ss-tproxy)是基于`dnsmasq + ipset`实现的透明代理解决方案。
+[ss-tproxy](https://github.com/zfl9/ss-tproxy)是基于 `dnsmasq + ipset` 实现的透明代理解决方案。
 
 具体配置方法见[ss-tproxy项目主页](https://github.com/zfl9/ss-tproxy)。
 
@@ -158,9 +161,9 @@ function post_stop {
 
 function run_v2ray {
   if [ -n "$(/v2ray/v2ray -test -config /etc/ss-tproxy/v2ray.conf | grep 'Configuration OK')" ]; then
-      /v2ray/v2ray -config /etc/ss-tproxy/v2ray.conf > /dev/null 2>&1 &
+    /v2ray/v2ray -config /etc/ss-tproxy/v2ray.conf > /dev/null 2>&1 &
   else
-      echo "[ERR] V2ray.conf error, can't start V2ray!" ; exit 1;
+    echo "[ERR] V2ray.conf error, can't start V2ray!" ; exit 1;
   fi
 }
 
@@ -189,22 +192,22 @@ docker exec tproxy-gateway /koolproxy/koolproxy --cert -b /etc/ss-proxy/koolprox
 新建docker macvlan网络，配置网络地址为内网lan地址及默认网关:
 ```bash
 docker network create -d macvlan \
-    --subnet=10.1.1.0/24 --gateway=10.1.1.1 \
-    --ipv6 --subnet=fe80::/10 --gateway=fe80::1 \
-    -o parent=eth0 \
-    -o macvlan_mode=bridge \
-    dMACvLAN
+  --subnet=10.1.1.0/24 --gateway=10.1.1.1 \
+  --ipv6 --subnet=fe80::/10 --gateway=fe80::1 \
+  -o parent=eth0 \
+  -o macvlan_mode=bridge \
+  dMACvLAN
 ```
 运行容器:
 ```bash
 docker run -d --name tproxy-gateway \
-    -e TZ=Asia/Shanghai \
-    --network dMACvLAN --ip 10.1.1.254 \
-    --privileged \
-    --restart unless-stopped \
-    -v /to/path/config:/etc/ss-tproxy \
-    -v /to/path/crontab:/etc/crontabs/root \
-    lisaac/tproxy-gateway:`uname -m`
+  -e TZ=Asia/Shanghai \
+  --network dMACvLAN --ip 10.1.1.254 \
+  --privileged \
+  --restart unless-stopped \
+  -v /to/path/config:/etc/ss-tproxy \
+  -v /to/path/crontab:/etc/crontabs/root \
+  lisaac/tproxy-gateway:`uname -m`
 ```
  - `--ip 10.1.1.254` 指定容器ipv4地址
  - `--ip6 fe80::fe80 ` 指定容器ipv6地址，如不指定自动分配，建议自动分配。若指定，容器重启后会提示ip地址被占用，只能重启docker服务才能启动，原因未知。

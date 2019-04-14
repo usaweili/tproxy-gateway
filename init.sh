@@ -3,7 +3,7 @@
 CONFIG_PATH="/etc/ss-tproxy"
 function check-env {
   if [ ! -f /usr/local/bin/ss-tproxy -o ! -f /v2ray/v2ray -o ! -f /koolproxy/koolproxy  -o ! -f /sample_config/ss-tproxy.conf -o ! -f /sample_config/v2ray.conf -o ! -f /sample_config/gfwlist.ext ]; then
-    /update.sh || echo "[ERR] Can't update, please check networking or update the container. "
+    /update.sh && { $0 $@; exit 0 } || echo "[ERR] Can't update, please check networking or update the container. "
   fi; \
   return 0
 }
@@ -169,13 +169,18 @@ function flush-ss-tproxy {
 }
 
 function set-cron {
+  echo "$(date +%Y-%m-%d\ %T) setting auto update.."; \
   # 停止 crond
   cron_pid="`pidof crond`" && \
   if [ -n "$cron_pid" ]; then
     kill -9 "$cron_pid" &> /dev/null
   fi; \
   # 若 /etc/crontabs/root 存在 '/init.sh' 则启动 crond
-  grep -n '^[^#]*/init.sh' /etc/crontabs/root && crond
+  if [ -n "$(grep -n '^[^#]*/init.sh' /etc/crontabs/root)" ]; then
+    crond
+  else
+    echo "$(date +%Y-%m-%d\ %T) auto update not valid, NO need to set."; \
+  fi
   return 0
 }
 
