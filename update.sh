@@ -32,7 +32,7 @@ function update-system {
   echo "$(date +%Y-%m-%d\ %T) Upgrading system.." && \
   sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
   apk --no-cache --no-progress upgrade && \
-  apk --no-cache --no-progress add perl curl bash iptables pcre openssl dnsmasq ipset iproute2 tzdata && \
+  apk --no-cache --no-progress add perl curl bash iptables pcre openssl dnsmasq ipset iproute2 tzdata jq && \
   sed -i 's/mirrors.aliyun.com/dl-cdn.alpinelinux.org/g' /etc/apk/repositories
 }
 
