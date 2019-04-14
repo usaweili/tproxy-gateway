@@ -3,7 +3,7 @@
 CONFIG_PATH="/etc/ss-tproxy"
 function check-env {
   if [ ! -f /usr/local/bin/ss-tproxy -o ! -f /v2ray/v2ray -o ! -f /koolproxy/koolproxy  -o ! -f /sample_config/ss-tproxy.conf -o ! -f /sample_config/v2ray.conf -o ! -f /sample_config/gfwlist.ext ]; then
-    /update.sh && { $0 $@; exit 0 } || echo "[ERR] Can't update, please check networking or update the container. "
+    /update.sh && { $0 $@; exit 0; } || echo "[ERR] Can't update, please check networking or update the container. "
   fi; \
   return 0
 }
