@@ -8,7 +8,7 @@ function check-new-version {
     echo "$(date +%Y-%m-%d\ %T) updating update.sh."
     wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/update.sh -O /tmp/update.sh && \
     install -c /tmp/update.sh $0 && \
-    $0 "$@"
+    exec $0 "$@"
     exit 0
   fi
   [ -f /init.sh ] && init_sh_current=$(stat -c %Y /init.sh) || init_sh_current=0
