@@ -2,7 +2,7 @@
 
 function check-new-version {
   echo "$(date +%Y-%m-%d\ %T) Check new version of tproxy-gateway." && \
-  tproxy_gateway_latest=$(curl -H 'Cache-Control: no-cache' -s "https://api.github.com/repos/lisaac/tproxy-gateway/commits/master" | grep date | awk 'NR==1{print $2}' | sed 's/"//g; s/T/ /; s/Z//' | xargs -I{} date -d {} +%s); \
+  tproxy_gateway_latest=$(curl -H 'Cache-Control: no-cache' -s "https://api.github.com/repos/lisaac/tproxy-gateway/commits/master" | grep '"date": ' | awk 'NR==1{print $2}' | sed 's/"//g; s/T/ /; s/Z//' | xargs -I{} date -d {} +%s); \
   update_sh_current=$(stat -c %Y $0); \
   if [ "$tproxy_gateway_latest" -gt "$update_sh_current" ]; then
     echo "$(date +%Y-%m-%d\ %T) updating update.sh."

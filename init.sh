@@ -142,7 +142,7 @@ function update-ss-config {
   fi; \
   echo "$(date +%Y-%m-%d\ %T) updating $proxy_mode.."
   if [ -s "$proxy_rule_file" ]; then #不空
-    proxy_rule_latest=$(curl -H 'Cache-Control: no-cache' -s "$proxy_rule_latest_url" | grep date | awk 'NR==1{print $2}' | sed 's/"//g; s/T/ /; s/Z//' | xargs -I{} date -d {} +%s); \
+    proxy_rule_latest=$(curl -H 'Cache-Control: no-cache' -s "$proxy_rule_latest_url" | grep '"date": ' | awk 'NR==1{print $2}' | sed 's/"//g; s/T/ /; s/Z//' | xargs -I{} date -d {} +%s); \
     proxy_rule_current=$(stat -c %Y $proxy_rule_file);
     if [ "$proxy_rule_latest" -gt "$proxy_rule_current" ]; then
           /usr/local/bin/ss-tproxy update-"$proxy_mode"
