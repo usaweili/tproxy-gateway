@@ -3,7 +3,7 @@
 function check-new-version {
   echo "$(date +%Y-%m-%d\ %T) Check new version of tproxy-gateway." && \
   tproxy_gateway_latest=$(curl -H 'Cache-Control: no-cache' -s "https://api.github.com/repos/lisaac/tproxy-gateway/commits/master" | grep '"date": ' | awk 'NR==1{print $2}' | sed 's/"//g; s/T/ /; s/Z//' | xargs -I{} date -u -d {} +%s) || { echo "[ERR] can NOT get the latest version of tproxy, please check the network"; exit 1; }
-  [-f $0 ] && update_sh_current=$(stat -c %Y $0) || update_sh_current=0
+  [ -f $0 ] && update_sh_current=$(stat -c %Y $0) || update_sh_current=0
   if [ "$tproxy_gateway_latest" -gt "$update_sh_current" ]; then
     echo "$(date +%Y-%m-%d\ %T) updating update.sh."
     wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/update.sh -O /tmp/update.sh && \
@@ -11,7 +11,7 @@ function check-new-version {
     $0 "$@"
     exit 0
   fi
-  [-f /init.sh ] && init_sh_current=$(stat -c %Y /init.sh) || init_sh_current=0
+  [ -f /init.sh ] && init_sh_current=$(stat -c %Y /init.sh) || init_sh_current=0
   if [ "$tproxy_gateway_latest" -gt "$init_sh_current" ]; then
     echo "$(date +%Y-%m-%d\ %T) updating init.sh."
     wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/init.sh -O /tmp/init.sh && \
