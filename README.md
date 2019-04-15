@@ -11,9 +11,9 @@ wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/ss-tproxy.co
   -O ~/.docker/tproxy-gateway/ss-tproxy.conf
 
 # 配置
-echo "输入vmess协议URI ( vmess://xxxxx )" && \
-  read r_uri && sed -i 's!proxy_uri=.*!proxy_uri='$r_uri'!'\
-  ~/.docker/tproxy-gateway/ss-tproxy.conf
+echo "粘贴vmess协议URI ( vmess://xxxxx )" && \
+  read r_uri && \
+  sed -i 's!proxy_uri=.*!proxy_uri='$r_uri'!' ~/.docker/tproxy-gateway/ss-tproxy.conf
 
 # 创建docker network
 docker network create -d macvlan \
@@ -61,11 +61,13 @@ docker logs tproxy-gateway
 ## mode
 #mode='global'
 mode='gfwlist'
-#mode_chnonly='true'   # chnonly 模式，需要 mode='gfwlist',切换 chnonly / gfwlist 之前请删除 gfwlist.txt ($file_gfwlist_txt) 文件
+#mode_chnonly='true'   # mode='gfwlist'时有效,切换 chnonly/gfwlist 之前请删除 gfwlist.txt 文件
 #mode='chnroute'
 
+# KP
+ad_koolproxy='true'
 ## proxy
-# vmess://xxxxx  代理节点配置 URI（V2rayN 生成）
+# vmess://xxxxx  代理节点配置 URI(V2rayN 生成)
 proxy_uri='vmess:/'
 proxy_server=()       # 服务器的地址，若已配置 proxy_uri 则无需配置
 proxy_tproxy='true'   # 纯TPROXY方式
@@ -74,7 +76,7 @@ proxy_tcport='60080'   # TCP 监听端口
 proxy_udport='60080'   # UDP 监听端口
 proxy_runcmd='run_v2ray'  # 启动的命令行
 proxy_kilcmd='kill -9 $(pidof v2ray) &>/dev/null'  # 停止的命令行
-proxy_ipv6='false'     # ipv6支持，目前只支持关闭（通过查询 DNS 只返回 ipv4 地址实现）
+proxy_ipv6='false'     # ipv6支持，目前只支持关闭(通过查询 DNS 只返回 ipv4 地址实现)
 
 ## dnsmasq
 dnsmasq_cache_size='10240'              # DNS 缓存条目
@@ -111,21 +113,23 @@ file_chnroute_set='/etc/ss-tproxy/chnroute.set' # chnroute 地址段文件 (ipta
 
 function post_start {
   # for koolproxy
-  mkdir -p /etc/ss-tproxy/koolproxydata
-  chown -R daemon:daemon /etc/ss-tproxy/koolproxydata
-  su -s/bin/sh -c'/koolproxy/koolproxy -d -l2 -p65080 -b/etc/ss-tproxy/koolproxydata' daemon
-  if [ "$proxy_tproxy" = 'true' ]; then
-      iptables -t mangle -I SSTP_OUT -m owner ! --uid-owner daemon -p tcp -m multiport --dports 80,443 -j RETURN
-      iptables -t nat  -I SSTP_OUT -m owner ! --uid-owner daemon -p tcp -m multiport --dports 80,443 -j REDIRECT --to-ports 65080
-      for intranet in "${ipts_intranet[@]}"; do
-        iptables -t mangle -I SSTP_PRE -m mark ! --mark $ipts_rt_mark -p tcp -m multiport --dports 80,443 -s $intranet ! -d $intranet -j RETURN
-        iptables -t nat  -I SSTP_PRE -m mark ! --mark $ipts_rt_mark -p tcp -m multiport --dports 80,443 -s $intranet ! -d $intranet -j REDIRECT --to-ports 65080
-      done
-  else
-      iptables -t nat -I SSTP_OUT -m owner ! --uid-owner daemon -p tcp -m multiport --dports 80,443 -j REDIRECT --to-ports 65080
-      for intranet in "${ipts_intranet[@]}"; do
-        iptables -t nat -I SSTP_PRE -s $intranet ! -d $intranet -p tcp -m multiport --dports 80,443 -j REDIRECT --to-ports 65080
-      done
+  if [ "$ad_koolproxy" = 'true' ]; then
+    mkdir -p /etc/ss-tproxy/koolproxydata
+    chown -R daemon:daemon /etc/ss-tproxy/koolproxydata
+    su -s/bin/sh -c'/koolproxy/koolproxy -d -l2 -p65080 -b/etc/ss-tproxy/koolproxydata' daemon
+    if [ "$proxy_tproxy" = 'true' ]; then
+        iptables -t mangle -I SSTP_OUT -m owner ! --uid-owner daemon -p tcp -m multiport --dports 80,443 -j RETURN
+        iptables -t nat  -I SSTP_OUT -m owner ! --uid-owner daemon -p tcp -m multiport --dports 80,443 -j REDIRECT --to-ports 65080
+        for intranet in "${ipts_intranet[@]}"; do
+          iptables -t mangle -I SSTP_PRE -m mark ! --mark $ipts_rt_mark -p tcp -m multiport --dports 80,443 -s $intranet ! -d $intranet -j RETURN
+          iptables -t nat  -I SSTP_PRE -m mark ! --mark $ipts_rt_mark -p tcp -m multiport --dports 80,443 -s $intranet ! -d $intranet -j REDIRECT --to-ports 65080
+        done
+    else
+        iptables -t nat -I SSTP_OUT -m owner ! --uid-owner daemon -p tcp -m multiport --dports 80,443 -j REDIRECT --to-ports 65080
+        for intranet in "${ipts_intranet[@]}"; do
+          iptables -t nat -I SSTP_PRE -s $intranet ! -d $intranet -p tcp -m multiport --dports 80,443 -j REDIRECT --to-ports 65080
+        done
+    fi
   fi
   # return ipv4 only from dns_remote (DROP AAAA RECORDE)
   if [ "$proxy_ipv6" = 'false' ]; then
@@ -152,11 +156,13 @@ function post_start {
 
 function post_stop {
   # kill koolproxy
-  kill -9 $(pidof koolproxy) &>/dev/null
+  [ "$ad_koolproxy" = 'true' ] && kill -9 $(pidof koolproxy) & >/dev/null
   # clear iptables for raw table SSTP_OUT and chain
-  iptables -t raw -D OUTPUT -j SSTP_OUT &>/dev/null
-  iptables -t raw -F SSTP_OUT &>/dev/null
-  iptables -t raw -X SSTP_OUT &>/dev/null
+  if [ "$proxy_ipv6" = 'false' ]; then
+    iptables -t raw -D OUTPUT -j SSTP_OUT &>/dev/null
+    iptables -t raw -F SSTP_OUT &>/dev/null
+    iptables -t raw -X SSTP_OUT &>/dev/null
+  fi
 }
 
 function run_v2ray {
@@ -166,6 +172,7 @@ function run_v2ray {
     echo "[ERR] V2ray.conf error, can't start V2ray!" ; exit 1;
   fi
 }
+
 
 ```
 
@@ -220,9 +227,9 @@ docker run -d --name tproxy-gateway \
 容器中内置 update.sh, 用于热更新 v2ray/koolproxy/ss-tproxy 等二进制文件。
 ```
 # 更新
-docker exec -t tproxy-gateway /update.sh
+docker exec tproxy-gateway /update.sh
 # 重启
-docker exec -t tproxy-gateway /init.sh
+docker exec tproxy-gateway /init.sh
 ```
 
 # 规则自动更新
