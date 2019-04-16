@@ -92,7 +92,7 @@ function resolve_URI {
       echo $v2ray_config | jq . > "/tmp/v2ray.conf" && \
       if [ -n "$(/v2ray/v2ray -test -config /tmp/v2ray.conf | grep 'Configuration OK')" ]; then
         mv /tmp/v2ray.conf "$CONFIG_PATH/v2ray.conf" && \
-        echo "V2ray.conf resolve succeed !!"
+        echo "$(date +%Y-%m-%d\ %T) V2ray.conf resolve succeed !!"
       else
         echo "[ERR] V2ray.conf resolve failed.."
         exit 1
