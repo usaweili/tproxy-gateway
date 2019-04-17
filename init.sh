@@ -80,7 +80,7 @@ function resolve_URI {
       in_stream='{"sockopt":{"mark":0,"tcpFastOpen":true,"tproxy":'${proxy_vmess_tproxy}'}}'
 
       if [ "$proxy_tcport" != "$proxy_udport" ]; then
-        inbound='[{"protocol":"dokodemo-door","listen":"0.0.0.0","port":'${proxy_tcport}',"settings":{"network": "tcp","followRedirect":true },"streamSettings":'${in_stream}'},[{"protocol":"dokodemo-door","listen":"0.0.0.0","port":'${proxy_udport}',"settings":{"network": "udp","followRedirect":true },"streamSettings":'${in_stream}'}]'
+        inbound='[{"protocol":"dokodemo-door","listen":"0.0.0.0","port":'${proxy_tcport}',"settings":{"network": "tcp","followRedirect":true },"streamSettings":'${in_stream}'},{"protocol":"dokodemo-door","listen":"0.0.0.0","port":'${proxy_udport}',"settings":{"network": "udp","followRedirect":true },"streamSettings":'${in_stream}'}]'
       else
         inbound='[{"protocol":"dokodemo-door","listen":"0.0.0.0","port":'${proxy_tcport}',"settings":{"network": "tcp,udp","followRedirect":true },"streamSettings":'${in_stream}'}]'
       fi
