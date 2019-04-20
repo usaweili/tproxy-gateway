@@ -1,6 +1,6 @@
 #!/bin/bash
 
-function check-new-version {
+function update_self {
   echo "$(date +%Y-%m-%d\ %T) Check new version of tproxy-gateway." && \
   tproxy_gateway_latest=$(curl -H 'Cache-Control: no-cache' -s "https://api.github.com/repos/lisaac/tproxy-gateway/commits/master" | grep '"date": ' | awk 'NR==1{print $2}' | sed 's/"//g; s/T/ /; s/Z//' | xargs -I{} date -u -d {} +%s) || { echo "[ERR] can NOT get the latest version of tproxy, please check the network"; exit 1; }
   [ -f $0 ] && update_sh_current=$(stat -c %Y $0) || update_sh_current=0
@@ -20,7 +20,7 @@ function check-new-version {
   echo "$(date +%Y-%m-%d\ %T) tproxy-gateway update to date."
 }
 
-function get-link {
+function get_link {
   echo "$(date +%Y-%m-%d\ %T) Getting latest version." && \
   arch=`uname -m` && \
   v2ray_latest_ver="$(curl -H 'Cache-Control: no-cache' -s https://api.github.com/repos/v2ray/v2ray-core/releases/latest | grep 'tag_name' | cut -d\" -f4)"; \
@@ -41,14 +41,14 @@ function get-link {
 }
 
 # 更新之前停止 ss-tproxy
-function stop-sstorpxy {
+function stop_sstorpxy {
   if [ -f /usr/local/bin/ss-tproxy ]; then
     /usr/local/bin/ss-tproxy stop > /dev/null
   fi
 }
 
 # 更新系统
-function update-system {
+function update_system {
   echo "$(date +%Y-%m-%d\ %T) Upgrading system.." && \
   sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories && \
   apk --no-cache --no-progress upgrade && \
@@ -57,7 +57,7 @@ function update-system {
 }
 
 # 更新 V2RAY
-function update-v2ray {
+function update_v2ray {
   echo "$(date +%Y-%m-%d\ %T) Updating v2ray.." && \
   v2ray_latest_v="$(echo $v2ray_latest_ver | cut -dv -f2)" && \
   if [ -f /v2ray/v2ray ]; then
@@ -76,7 +76,7 @@ function update-v2ray {
 }
 
 # 更新 ss-tproxy 并 patch
-function update-ss-tproxy {
+function update_ss_tproxy {
   echo "$(date +%Y-%m-%d\ %T) Updating ss-tproxy.." && \
   cd / && mkdir -p /ss-tproxy &&\
   wget "$ss_url" -O /ss-tproxy/ss-tproxy && \
@@ -89,7 +89,7 @@ function update-ss-tproxy {
 }
 
 # 更新 koolproxy
-function update-koolproxy {
+function update_koolproxy {
   echo "$(date +%Y-%m-%d\ %T) Updating koolproxy.." && \
   if [ -f /koolproxy/koolproxy ]; then
     koolproxy_current_ver="$(/koolproxy/koolproxy -v | cut -d' ' -f1)"
@@ -104,7 +104,7 @@ function update-koolproxy {
 }
 
 # 更新 chinadns
-function update-chinadns {
+function update_chinadns {
   echo "$(date +%Y-%m-%d\ %T) Updating chinadns.." && \
   if [ -f /usr/local/bin/chinadns ]; then
     chinadns_current_ver="$(/usr/local/bin/chinadns -V | cut -d' ' -f2)"
@@ -117,7 +117,7 @@ function update-chinadns {
   fi
 }
 
-function update-sample-files {
+function update_sample_files {
   echo "$(date +%Y-%m-%d\ %T) Updating sample files.." && \
   mkdir -p /sample_config && \
   wget https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/ss-tproxy.conf -O /sample_config/ss-tproxy.conf && \
@@ -126,7 +126,7 @@ function update-sample-files {
 }
 
 # 写入更新日期及版本
-function check-version {
+function check_version {
   rm -rf /tmp/* && \
   echo "Update time: $(date +%Y-%m-%d\ %T)" > /version && \
   echo "V2Ray version: $(/v2ray/v2ray -version | grep V2Ray | cut -d' ' -f2)" | tee -a /version && \
@@ -135,4 +135,4 @@ function check-version {
   echo "Update completed !!"
 }
 
-check-new-version && get-link && stop-sstorpxy && update-v2ray && update-ss-tproxy && update-koolproxy && update-chinadns && update-sample-files && check-version || echo "Update failed." 
+update_system && update_self && get_link && stop_sstorpxy && update_v2ray && update_ss_tproxy && update_koolproxy && update_chinadns && update_sample_files && check_version || echo "Update failed." 
