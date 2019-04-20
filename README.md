@@ -61,8 +61,7 @@ docker logs tproxy-gateway
 [https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/ss-tproxy.conf](https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/ss-tproxy.conf)
 
 ## koolproxy
-镜像中包含 `koolproxy`，需要在 `ss-tproxy.conf` 中 `post_start` 方法中加入以下脚本，则 `koolproxy` 会随`ss-tproxy`启动。
-同时在 `post_stop` 方法中加入加入以下脚本，让 `koolproxy` 随 `ss-tproxy` 停止。
+镜像中包含 `koolproxy`，需要在 `ss-tproxy.conf` 设置 `ad_filter='kp'`
 
 #### Koolproxy 开启 HTTPS 过滤
 默认没有启用 `https` 过滤，如需要启用 `https` 过滤，需要运行:
@@ -156,12 +155,12 @@ docker exec tproxy-gateway /init.sh
 # 关于宿主机出口
 由于`docker`网络采用`macvlan`的`bridge`模式，宿主机虽然与容器在同一网段，但是相互之间是无法通信的，所以无法通过`tproxy-gateway`透明代理。
 
-解决方案 1 是让宿主机直接走主路由，不经过代理网关：
+解决方案 1 是让宿主机直接走主路由，不经过代理网关，直接设置静态IP地址：
 ```bash
 ip route add default via 10.1.1.1 dev eth0 # 设置静态路由
 echo "nameserver 10.1.1.1" > /etc/resolv.conf # 设置静态dns服务器
 ```
-解决方案 2 是利用多个`macvlan`接口之间是互通的原理，新建一个`macvlan`虚拟接口：
+解决方案 2 是利用多个`macvlan`接口之间是互通的原理，新建一个`macvlan`虚拟接口，并设置静态IP地址：
 ```bash
 ip link add link eth0 mac0 type macvlan mode bridge # 在eth0接口下添加一个macvlan虚拟接口
 ip addr add 10.1.1.250/24 brd + dev mac0 # 为mac0 分配ip地址
