@@ -1,7 +1,7 @@
 #!/bin/bash
 
 CONFIG_PATH="/etc/ss-tproxy"
-function check-env {
+function check_env {
   if [ ! -f /usr/local/bin/ss-tproxy -o ! -f /v2ray/v2ray -o ! -f /koolproxy/koolproxy  -o ! -f /sample_config/ss-tproxy.conf -o ! -f /sample_config/v2ray.conf -o ! -f /sample_config/gfwlist.ext ]; then
     /update.sh && { exec $0 "$@"; exit 0; } || { echo "[ERR] Can't update, please check networking or update the container. "; return 1; }
   fi; \
@@ -100,7 +100,7 @@ function resolve_URI {
   fi
 }
 
-function check-config {
+function check_config {
   NEED_EXIT="false"
   # 若没有配置文件，拷贝配置文件模版
   if [ ! -f "$CONFIG_PATH"/ss-tproxy.conf ]; then
@@ -128,13 +128,13 @@ function check-config {
   return 0
 }
 
-function stop-ss-tproxy {
+function stop_ss_tproxy {
   # 更新之前，停止 ss-tproxy
   echo "$(date +%Y-%m-%d\ %T) stopping tproxy-gateway.."; \
   /usr/local/bin/ss-tproxy stop && return 0
 }
 
-function update-ss-config {
+function update_ss_config {
   # 更新 ss-tproxy 规则
   if [ "$mode" = chnroute ]; then
     proxy_mode="$mode"
@@ -164,7 +164,7 @@ function update-ss-config {
   return 0
 }
 
-function flush-ss-tproxy {
+function flush_ss_tproxy {
   # 清除 iptables
   echo "$(date +%Y-%m-%d\ %T) flushing iptables.."; \
   /usr/local/bin/ss-tproxy flush-iptables; \
@@ -177,7 +177,7 @@ function flush-ss-tproxy {
   return 0
 }
 
-function set-cron {
+function set_cron {
   echo "$(date +%Y-%m-%d\ %T) setting auto update.."; \
   # 停止 crond
   cron_pid="`pidof crond`" && \
@@ -193,15 +193,24 @@ function set-cron {
   return 0
 }
 
-function start-ss-tproxy {
+function start_ss_tproxy {
   # 启动 ss-tproxy
   echo "$(date +%Y-%m-%d\ %T) staring tproxy-gateway.."; \
   /usr/local/bin/ss-tproxy start && return 0
 }
 
-check-env && check-config && stop-ss-tproxy && flush-ss-tproxy && resolve_URI && update-ss-config && set-cron && start-ss-tproxy && \
-echo -e "IPv4 gateway & dns server: \n`ip addr show eth0 |grep 'inet ' | awk '{print $2}' |sed 's/\/.*//g'`" && \
-echo -e "IPv6 dns server: \n`ip addr show eth0 |grep 'inet6 ' | awk '{print $2}' |sed 's/\/.*//g'`" || echo "[ERR] Start tproxy-gateway failed."
-if [ "$1" = daemon ]; then
-  tail -f /dev/null
-fi
+function start_tproxy_gateway {
+resolve_URI && update_ss_config && set_cron && start_ss_tproxy && \
+  echo -e "IPv4 gateway & dns server: \n`ip addr show eth0 |grep 'inet ' | awk '{print $2}' |sed 's/\/.*//g'`" && \
+  echo -e "IPv6 dns server: \n`ip addr show eth0 |grep 'inet6 ' | awk '{print $2}' |sed 's/\/.*//g'`" || echo "[ERR] Start tproxy-gateway failed."
+}
+
+check_env && check_config && \
+case $1 in
+    start)         flush_ss_tproxy && start_tproxy_gateway;;
+    stop)          stop_ss_tproxy && flush_ss_tproxy;;
+    daemon)        flush_ss_tproxy && start_tproxy_gateway && tail -f /var/log/v2ray-error.log;;
+    update)        update_ss_config;;
+    flush)         flush_ss_tproxy;;
+    *)             stop_ss_tproxy && start_tproxy_gateway;;
+esac
