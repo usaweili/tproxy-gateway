@@ -66,7 +66,7 @@ docker logs tproxy-gateway
 #### Koolproxy 开启 HTTPS 过滤
 默认没有启用 `https` 过滤，如需要启用 `https` 过滤，需要运行:
 ```bash
-docker exec tproxy-gateway /koolproxy/koolproxy --cert -b /etc/ss-proxy/koolproxydata
+docker exec tproxy-gateway /koolproxy/koolproxy --cert -b /etc/ss-tproxy/koolproxydata
 ```
 并重启容器，证书文件在宿主机的`/to/path/config/koolproxydata/cert`目录下。
 
