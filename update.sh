@@ -35,7 +35,7 @@ function get_link {
     v2ray_url="https://raw.githubusercontent.com/v2ray/dist/master/v2ray-linux-arm64.zip"
     #v2ray_url="https://github.com/v2ray/v2ray-core/releases/download/$v2ray_latest_ver/v2ray-linux-arm64.zip"
   fi; \
-  ss_url="https://raw.githubusercontent.com/zfl9/ss-tproxy/v3-master/ss-tproxy"; \
+  ss_url="https://raw.githubusercontent.com/zfl9/ss-tproxy/master/ss-tproxy"; \
   chinadns_url="https://raw.githubusercontent.com/lisaac/tproxy-gateway/master/chinadns.`uname -m`"; \
   echo -e "V2ray latest version is ${v2ray_latest_ver}.\nKoolproxy latest version is ${koolproxy_latest_ver}.\nChinadns latest version is ${chinadns_latest_ver}."
 }

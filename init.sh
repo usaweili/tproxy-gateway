@@ -209,7 +209,7 @@ check_env && check_config && \
 case $1 in
     start)         flush_ss_tproxy && start_tproxy_gateway;;
     stop)          stop_ss_tproxy && flush_ss_tproxy;;
-    daemon)        flush_ss_tproxy && start_tproxy_gateway && tail -f /var/log/v2ray-error.log;;
+    daemon)        flush_ss_tproxy && start_tproxy_gateway && touch /var/log/v2ray-error.log && tail -f /var/log/v2ray-error.log;;
     update)        update_ss_config;;
     flush)         flush_ss_tproxy;;
     *)             stop_ss_tproxy && start_tproxy_gateway;;
